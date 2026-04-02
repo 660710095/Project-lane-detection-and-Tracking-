@@ -205,3 +205,19 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# ===== CS29 Project Specific =====
+
+# Dataset & Videos (ไฟล์ใหญ่เกินไป)
+data/
+*.mp4
+*.avi
+*.mov
+
+# Model weights
+*.pt
+*.pth
+*.h5
+
+# Results
+results/
