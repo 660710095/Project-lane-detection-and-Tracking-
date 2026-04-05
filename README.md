@@ -34,20 +34,6 @@ Project/
 │
 ├── results/            ← เก็บผลลัพธ์วิดีโอและกราฟ (ถูก Ignore ไม่นำขึ้น GitHub)
 └── data/               ← เก็บ Dataset สำหรับเทรนและทดสอบ (ถูก Ignore ไม่นำขึ้น GitHub)
-## โครงสร้างโปรเจค
-Project/
-├── image_processing/   ← OpenCV (มโนรินทร์)
-│   ├── utils.py        ← ฟังก์ชันโหลดรูป/วิดีโอ
-│   ├── edge_detection.py ← pipeline ตรวจจับเส้น
-│   └── main.py         ← รันโปรแกรมหลัก
-├── machine_learning/   ← ML Model (ปั้ม)
-│   ├── model.py        ← โครงสร้างโมเดล
-│   ├── train.py        ← เทรนโมเดล
-│   ├── predict.py      ← ทำนายเส้นจราจร
-│   └── evaluate.py     ← วัดผลความแม่นยำ
-├── web_app/            ← เว็บแอป (ปั้ม)
-├── results/            ← ผลลัพธ์ (ไม่ขึ้น GitHub)
-└── data/               ← dataset (ไม่ขึ้น GitHub)
 
 ## การติดตั้ง
 ```bash
