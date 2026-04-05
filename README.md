@@ -49,7 +49,7 @@ pip install opencv-python numpy matplotlib
 git clone https://github.com/660710095/Project-lane-detection-and-Tracking-.git
 cd Project-lane-detection-and-Tracking-
 
-# 2. สร้าง branch ของตัวเอง (เพื่อน)
+# 2. สร้าง branch ของตัวเอง
 git checkout -b machine-learning
 
 # 3. ติดตั้ง library
@@ -60,8 +60,8 @@ pip install opencv-python numpy matplotlib
 | ส่วน | ผู้รับผิดชอบ |
 |------|-------------|
 | Image Processing (OpenCV) | มโนรินทร์ นันทะนิ 660710095 |
-| Machine Learning | สองคน |
-| Web Application | ชื่อ ปั้ม |
+| Machine Learning | ร่วมกัน |
+| Web Application | ปั้ม |
 
 วิธีการทำงานร่วมกัน (Git Workflow)
 สำหรับผู้ร่วมพัฒนา กรุณาสร้าง Branch ของตัวเองก่อนเริ่มเขียนโค้ดเพื่อป้องกันโค้ดทับซ้อนกัน
