@@ -63,3 +63,31 @@ git checkout main
 git merge image-processing
 git push origin main
 git checkout image-processing
+
+# 🛣️ Road Lane Detection and Tracking 
+**ระบบตรวจจับและติดตามช่องจราจรจากวิดีโอ ด้วยเทคนิค Image Processing และ Machine Learning**
+
+![Python](https://img.shields.io/badge/Python-3.x-blue.svg?logo=python&logoColor=white)
+![OpenCV](https://img.shields.io/badge/OpenCV-Image_Processing-green.svg?logo=opencv&logoColor=white)
+![Machine Learning](https://img.shields.io/badge/Machine_Learning-Model-orange.svg)
+
+โปรเจคนี้เป็นการศึกษาและเปรียบเทียบประสิทธิภาพในการตรวจจับและติดตามเส้นแบ่งช่องจราจรจากวิดีโอกล้องหน้ารถ โดยใช้วิธีการประมวลผลภาพพื้นฐาน (OpenCV) เปรียบเทียบกับการใช้โมเดลการเรียนรู้ของเครื่อง (Machine Learning) พร้อมระบบเว็บแอปพลิเคชันสำหรับการแสดงผล
+
+---
+
+## 📂 โครงสร้างโปรเจค (Project Structure)
+
+```text
+Project/
+├── image_processing/   ← สคริปต์สำหรับการประมวลผลภาพ (OpenCV)
+│   ├── utils.py        ← ฟังก์ชันโหลดรูปภาพและวิดีโอ
+│   ├── edge_detection.py ← Pipeline สำหรับตรวจจับเส้นจราจร
+│   └── main.py         ← ไฟล์รันโปรแกรมหลัก (Image Processing)
+├── machine_learning/   ← สคริปต์สำหรับโมเดล Machine Learning
+│   ├── model.py        ← โครงสร้างและสถาปัตยกรรมโมเดล
+│   ├── train.py        ← โค้ดสำหรับเทรนโมเดล
+│   ├── predict.py      ← โค้ดสำหรับทำนายเส้นจราจร
+│   └── evaluate.py     ← โค้ดวัดผลและเปรียบเทียบความแม่นยำ
+├── web_app/            ← ระบบเว็บแอปพลิเคชันสำหรับใช้งาน
+├── results/            ← เก็บผลลัพธ์วิดีโอและกราฟ (ถูก Ignore ไม่นำขึ้น GitHub)
+└── data/               ← เก็บ Dataset สำหรับเทรนและทดสอบ (ถูก Ignore ไม่นำขึ้น GitHub)
