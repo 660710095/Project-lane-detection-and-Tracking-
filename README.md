@@ -48,6 +48,8 @@ Project/
 ```bash
 pip install opencv-python numpy matplotlib
 ```
+วิธีการทำงานร่วมกัน (Git Workflow)
+สำหรับผู้ร่วมพัฒนา กรุณาสร้าง Branch ของตัวเองก่อนเริ่มเขียนโค้ดเพื่อป้องกันโค้ดทับซ้อนกัน
 
 ## Dataset
 โหลด KITTI Road Dataset ที่ https://www.cvlibs.net/datasets/kitti/eval_road.php
@@ -75,13 +77,15 @@ pip install opencv-python numpy matplotlib
 | Machine Learning | สองคน |
 | Web Application | ชื่อ ปั้ม |
 
-copy ใส่ README.md หลักแล้ว Ctrl+S ได้เลย แล้ว push ขึ้น GitHub:
-powershellgit add .
-git commit -m "update README"
-git push origin image-processing
-git checkout main
-git merge image-processing
-git push origin main
-git checkout image-processing
+วิธีการทำงานร่วมกัน (Git Workflow)
+สำหรับผู้ร่วมพัฒนา กรุณาสร้าง Branch ของตัวเองก่อนเริ่มเขียนโค้ดเพื่อป้องกันโค้ดทับซ้อนกัน
 
+# การสร้างและสลับไป Branch ของตัวเอง
+git checkout -b image-processing  # สำหรับมโนรินทร์
+git checkout -b machine-learning  # สำหรับปั้ม
+
+# การอัปเดตโค้ดขึ้น GitHub
+git add .
+git commit -m "อัปเดต: [ใส่รายละเอียดสิ่งที่ทำ]"
+git push origin <ชื่อ-branch-ของตัวเอง>
 
