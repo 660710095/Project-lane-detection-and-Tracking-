@@ -27,7 +27,7 @@ def save_video(output_path, frames, fps):
 
 def get_kitti_image(kitti_dir):
     # ดึง Path ของภาพจาก KITTI dataset มาทั้งหมด
-    img_dir = os.path.join(kitti_dir, f)
+    img_dir = os.path.join(kitti_dir, "training","image_2")
     paths = sorted([
         os.path.join(img_dir, f)
         for f in os.listdir(img_dir)
