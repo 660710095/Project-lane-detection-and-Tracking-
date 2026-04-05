@@ -79,7 +79,7 @@ pip install opencv-python numpy matplotlib
 
 วิธีการทำงานร่วมกัน (Git Workflow)
 สำหรับผู้ร่วมพัฒนา กรุณาสร้าง Branch ของตัวเองก่อนเริ่มเขียนโค้ดเพื่อป้องกันโค้ดทับซ้อนกัน
-
+```bash
 # การสร้างและสลับไป Branch ของตัวเอง
 git checkout -b image-processing  # สำหรับมโนรินทร์
 git checkout -b machine-learning  # สำหรับปั้ม
@@ -88,4 +88,4 @@ git checkout -b machine-learning  # สำหรับปั้ม
 git add .
 git commit -m "อัปเดต: [ใส่รายละเอียดสิ่งที่ทำ]"
 git push origin <ชื่อ-branch-ของตัวเอง>
-
+```
