@@ -35,6 +35,7 @@ Project/
 ├── results/            ← เก็บผลลัพธ์วิดีโอและกราฟ (ถูก Ignore ไม่นำขึ้น GitHub)
 └── data/               ← เก็บ Dataset สำหรับเทรนและทดสอบ (ถูก Ignore ไม่นำขึ้น GitHub)
 
+```
 ## การติดตั้ง
 ```bash
 pip install opencv-python numpy matplotlib
