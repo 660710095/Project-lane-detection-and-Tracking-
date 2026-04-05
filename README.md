@@ -1,39 +1,47 @@
-# Project-lane-detection-and-Tracking-
-Road Lane Detection and Tracking using OpenCV and Python
-ระบบตรวจจับและติดตามช่องจราจรจากวิดีโอ ด้วย OpenCV และ Machine Learning
+# 🛣️ Road Lane Detection and Tracking 
+**ระบบตรวจจับและติดตามช่องจราจรจากวิดีโอ (Image Processing vs Machine Learning)**
 
-## โครงสร้างโปรเจค
-Project/
-├── image_processing/   ← OpenCV (มโนรินทร์)
-│   ├── utils.py        ← ฟังก์ชันโหลดรูป/วิดีโอ
-│   ├── edge_detection.py ← pipeline ตรวจจับเส้น
-│   └── main.py         ← รันโปรแกรมหลัก
-├── machine_learning/   ← ML Model (ปั้ม)
-│   ├── model.py        ← โครงสร้างโมเดล
-│   ├── train.py        ← เทรนโมเดล
-│   ├── predict.py      ← ทำนายเส้นจราจร
-│   └── evaluate.py     ← วัดผลความแม่นยำ
-├── web_app/            ← เว็บแอป (ปั้ม)
-├── results/            ← ผลลัพธ์ (ไม่ขึ้น GitHub)
-└── data/               ← dataset (ไม่ขึ้น GitHub)
+![Python](https://img.shields.io/badge/Python-3.x-blue.svg?logo=python&logoColor=white)
+![OpenCV](https://img.shields.io/badge/OpenCV-Image_Processing-green.svg?logo=opencv&logoColor=white)
+![Machine Learning](https://img.shields.io/badge/Machine_Learning-Model-orange.svg)
+![Web App](https://img.shields.io/badge/Web_App-Interface-purple.svg)
 
-## การติดตั้ง
-```bash
-pip install opencv-python numpy matplotlib
-```
+โปรเจคนี้เป็นการศึกษาและเปรียบเทียบประสิทธิภาพในการตรวจจับและติดตามเส้นแบ่งช่องจราจรจากวิดีโอกล้องหน้ารถ โดยใช้วิธีการประมวลผลภาพพื้นฐาน (OpenCV) เปรียบเทียบกับการใช้โมเดลการเรียนรู้ของเครื่อง (Machine Learning) พร้อมระบบเว็บแอปพลิเคชันสำหรับการแสดงผลการทำงาน
 
+---
 ## Dataset
 โหลด KITTI Road Dataset ที่ https://www.cvlibs.net/datasets/kitti/eval_road.php
 - โหลด **base kit** และ **development kit**
 - แตกไฟล์วางไว้ที่ `data/kitti/training/`
 
-## โครงสร้าง Data
 
-data/
-└── kitti/
-└── training/
-├── image_2/      ← รูปภาพ
-└── gt_image_2/   ← ground truth
+## 📂 โครงสร้างโปรเจค (Project Structure)
+
+```text
+Project/
+├── image_processing/   ← [มโนรินทร์] สคริปต์สำหรับการประมวลผลภาพ (OpenCV)
+│   ├── utils.py        ← ฟังก์ชันช่วยเหลือ เช่น โหลดรูปภาพและวิดีโอ
+│   ├── edge_detection.py ← Pipeline หลักสำหรับตรวจจับเส้นจราจร
+│   └── main.py         ← ไฟล์รันโปรแกรมหลัก (ฝั่ง Image Processing)
+│
+├── machine_learning/   ← [ปั้ม] สคริปต์สำหรับโมเดล Machine Learning
+│   ├── model.py        ← โครงสร้างและสถาปัตยกรรมของโมเดล
+│   ├── train.py        ← โค้ดสำหรับดึงข้อมูลมาเทรนโมเดล
+│   ├── predict.py      ← โค้ดสำหรับทำนายเส้นจราจรจากวิดีโอ/ภาพ
+│   └── evaluate.py     ← โค้ดวัดผลและเปรียบเทียบความแม่นยำ
+│
+├── web_app/            ← [ปั้ม] ระบบเว็บแอปพลิเคชันสำหรับแสดงผลและใช้งาน
+│
+├── results/            ← เก็บผลลัพธ์วิดีโอและกราฟ (ถูก Ignore ไม่นำขึ้น GitHub)
+└── data/               ← เก็บ Dataset สำหรับเทรนและทดสอบ (ถูก Ignore ไม่นำขึ้น GitHub)
+
+```
+#### วิธีการทำงานร่วมกัน (Git Workflow)
+สำหรับผู้ร่วมพัฒนา กรุณาสร้าง Branch ของตัวเองก่อนเริ่มเขียนโค้ดเพื่อป้องกันโค้ดทับซ้อนกัน
+## การติดตั้ง
+```bash
+pip install opencv-python numpy matplotlib
+```
 
 ## วิธี Clone และเริ่มทำงาน
 ```bash
@@ -55,39 +63,15 @@ pip install opencv-python numpy matplotlib
 | Machine Learning | สองคน |
 | Web Application | ชื่อ ปั้ม |
 
-copy ใส่ README.md หลักแล้ว Ctrl+S ได้เลย แล้ว push ขึ้น GitHub:
-powershellgit add .
-git commit -m "update README"
-git push origin image-processing
-git checkout main
-git merge image-processing
-git push origin main
-git checkout image-processing
+วิธีการทำงานร่วมกัน (Git Workflow)
+สำหรับผู้ร่วมพัฒนา กรุณาสร้าง Branch ของตัวเองก่อนเริ่มเขียนโค้ดเพื่อป้องกันโค้ดทับซ้อนกัน
+```bash
+# การสร้างและสลับไป Branch ของตัวเอง
+git checkout -b image-processing  # สำหรับมโนรินทร์
+git checkout -b machine-learning  # สำหรับปั้ม
 
-# 🛣️ Road Lane Detection and Tracking 
-**ระบบตรวจจับและติดตามช่องจราจรจากวิดีโอ ด้วยเทคนิค Image Processing และ Machine Learning**
-
-![Python](https://img.shields.io/badge/Python-3.x-blue.svg?logo=python&logoColor=white)
-![OpenCV](https://img.shields.io/badge/OpenCV-Image_Processing-green.svg?logo=opencv&logoColor=white)
-![Machine Learning](https://img.shields.io/badge/Machine_Learning-Model-orange.svg)
-
-โปรเจคนี้เป็นการศึกษาและเปรียบเทียบประสิทธิภาพในการตรวจจับและติดตามเส้นแบ่งช่องจราจรจากวิดีโอกล้องหน้ารถ โดยใช้วิธีการประมวลผลภาพพื้นฐาน (OpenCV) เปรียบเทียบกับการใช้โมเดลการเรียนรู้ของเครื่อง (Machine Learning) พร้อมระบบเว็บแอปพลิเคชันสำหรับการแสดงผล
-
----
-
-## 📂 โครงสร้างโปรเจค (Project Structure)
-
-```text
-Project/
-├── image_processing/   ← สคริปต์สำหรับการประมวลผลภาพ (OpenCV)
-│   ├── utils.py        ← ฟังก์ชันโหลดรูปภาพและวิดีโอ
-│   ├── edge_detection.py ← Pipeline สำหรับตรวจจับเส้นจราจร
-│   └── main.py         ← ไฟล์รันโปรแกรมหลัก (Image Processing)
-├── machine_learning/   ← สคริปต์สำหรับโมเดล Machine Learning
-│   ├── model.py        ← โครงสร้างและสถาปัตยกรรมโมเดล
-│   ├── train.py        ← โค้ดสำหรับเทรนโมเดล
-│   ├── predict.py      ← โค้ดสำหรับทำนายเส้นจราจร
-│   └── evaluate.py     ← โค้ดวัดผลและเปรียบเทียบความแม่นยำ
-├── web_app/            ← ระบบเว็บแอปพลิเคชันสำหรับใช้งาน
-├── results/            ← เก็บผลลัพธ์วิดีโอและกราฟ (ถูก Ignore ไม่นำขึ้น GitHub)
-└── data/               ← เก็บ Dataset สำหรับเทรนและทดสอบ (ถูก Ignore ไม่นำขึ้น GitHub)
+# การอัปเดตโค้ดขึ้น GitHub
+git add .
+git commit -m "อัปเดต: [ใส่รายละเอียดสิ่งที่ทำ]"
+git push origin <ชื่อ-branch-ของตัวเอง>
+```
