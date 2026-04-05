@@ -9,6 +9,11 @@
 โปรเจคนี้เป็นการศึกษาและเปรียบเทียบประสิทธิภาพในการตรวจจับและติดตามเส้นแบ่งช่องจราจรจากวิดีโอกล้องหน้ารถ โดยใช้วิธีการประมวลผลภาพพื้นฐาน (OpenCV) เปรียบเทียบกับการใช้โมเดลการเรียนรู้ของเครื่อง (Machine Learning) พร้อมระบบเว็บแอปพลิเคชันสำหรับการแสดงผลการทำงาน
 
 ---
+## Dataset
+โหลด KITTI Road Dataset ที่ https://www.cvlibs.net/datasets/kitti/eval_road.php
+- โหลด **base kit** และ **development kit**
+- แตกไฟล์วางไว้ที่ `data/kitti/training/`
+
 
 ## 📂 โครงสร้างโปรเจค (Project Structure)
 
@@ -50,12 +55,6 @@ pip install opencv-python numpy matplotlib
 ```
 วิธีการทำงานร่วมกัน (Git Workflow)
 สำหรับผู้ร่วมพัฒนา กรุณาสร้าง Branch ของตัวเองก่อนเริ่มเขียนโค้ดเพื่อป้องกันโค้ดทับซ้อนกัน
-
-## Dataset
-โหลด KITTI Road Dataset ที่ https://www.cvlibs.net/datasets/kitti/eval_road.php
-- โหลด **base kit** และ **development kit**
-- แตกไฟล์วางไว้ที่ `data/kitti/training/`
-
 
 ## วิธี Clone และเริ่มทำงาน
 ```bash
