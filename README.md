@@ -18,23 +18,34 @@
 ## 📂 โครงสร้างโปรเจค (Project Structure)
 
 ```text
-Project/
-├── image_processing/   ← [มโนรินทร์] สคริปต์สำหรับการประมวลผลภาพ (OpenCV)
-│   ├── utils.py        ← ฟังก์ชันช่วยเหลือ เช่น โหลดรูปภาพและวิดีโอ
-│   ├── edge_detection.py ← Pipeline หลักสำหรับตรวจจับเส้นจราจร
-│   └── main.py         ← ไฟล์รันโปรแกรมหลัก (ฝั่ง Image Processing)
+lane-detection-cs29/
 │
-├── machine_learning/   ← [ปั้ม] สคริปต์สำหรับโมเดล Machine Learning
-│   ├── model.py        ← โครงสร้างและสถาปัตยกรรมของโมเดล
-│   ├── train.py        ← โค้ดสำหรับดึงข้อมูลมาเทรนโมเดล
-│   ├── predict.py      ← โค้ดสำหรับทำนายเส้นจราจรจากวิดีโอ/ภาพ
-│   └── evaluate.py     ← โค้ดวัดผลและเปรียบเทียบความแม่นยำ
+├── data/kitti               
+│   ├── testing/
+│   └── training/
+|
+├── image_processing/         [มโนรินทร์] สคริปต์สำหรับการประมวลผลภาพ (OpenCV)
+│   ├── edge_detection.py    ← Pipeline หลักสำหรับตรวจจับเส้นจราจร
+|   ├── lane_tracker.py
+│   ├── main.py              ← ไฟล์รันโปรแกรมหลัก (ฝั่ง Image Processing)
+│   ├── perspective.py
+│   └── utils.py             ← ฟังก์ชันช่วยเหลือ เช่น โหลดรูปภาพและวิดีโอ
 │
-├── web_app/            ← [ปั้ม] ระบบเว็บแอปพลิเคชันสำหรับแสดงผลและใช้งาน
+├── machine_learning/        ←  [มโนรินทร์] (ML)
+│   ├── evaluate.py          ← โค้ดวัดผลและเปรียบเทียบความแม่นยำ
+|   ├── model.py             ← โครงสร้างและสถาปัตยกรรมของโมเดล
+|   ├── predict.py           ← โค้ดสำหรับทำนายเส้นจราจรจากวิดีโอ/ภาพ
+│   └── train.py             ← โค้ดสำหรับดึงข้อมูลมาเทรนโมเดล
 │
-├── results/            ← เก็บผลลัพธ์วิดีโอและกราฟ (ถูก Ignore ไม่นำขึ้น GitHub)
-└── data/               ← เก็บ Dataset สำหรับเทรนและทดสอบ (ถูก Ignore ไม่นำขึ้น GitHub)
-
+├── web_app/                 ← [ปั้ม] ระบบเว็บแอปพลิเคชันสำหรับแสดงผลและใช้งาน
+│   ├── backend/
+│   └── frontend/
+│
+|
+│
+├── results/                 ← เก็บผลลัพธ์วิดีโอและกราฟ (ถูก Ignore ไม่นำขึ้น GitHub)                ← เอกสาร
+├── requirements.txt
+└── README.md
 ```
 #### วิธีการทำงานร่วมกัน (Git Workflow)
 สำหรับผู้ร่วมพัฒนา กรุณาสร้าง Branch ของตัวเองก่อนเริ่มเขียนโค้ดเพื่อป้องกันโค้ดทับซ้อนกัน
@@ -60,7 +71,7 @@ pip install opencv-python numpy matplotlib
 | ส่วน | ผู้รับผิดชอบ |
 |------|-------------|
 | Image Processing (OpenCV) | มโนรินทร์ นันทะนิ 660710095 |
-| Machine Learning | ร่วมกัน |
+| Machine Learning | มโนรินทร์ นันทะนิ 660710095 |
 | Web Application | ปั้ม |
 
 วิธีการทำงานร่วมกัน (Git Workflow)
