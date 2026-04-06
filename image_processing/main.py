@@ -40,6 +40,7 @@ def test_video(video_path, output_path):
     
     frames = []
     total = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    count = 0
     #count frames in Video
 
 
@@ -56,7 +57,6 @@ def test_video(video_path, output_path):
         result, _, _ = full_pipeline(frame)
         frames.append(result)
 
-        frames.append(result)
         count += 1
         if count % 30 == 0:
             print(f'Processed {count}/{total} frames')
@@ -80,12 +80,12 @@ if __name__ == "__main__":
     os.makedirs("result", exist_ok=True)
     # create folder result if not exist
 
-    KITTI_DIR = "data/kitti"
+    KITTI_DIR = "../data/kitti"
     # path to dataset
 
     test_single_image(f"{KITTI_DIR}/training/image_2/um_000000.png")
-    #run mode1 : test single image from kitti dataset
+    #run model 1 : test single image from kitti dataset
 
-    
+
     # test_video("data/videos/test.mp4")     ← comment ไว้ก่อน
     # test_kitti_batch(KITTI_DIR)            ← comment ไว้ก่อน
