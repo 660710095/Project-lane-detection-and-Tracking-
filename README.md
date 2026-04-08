@@ -26,9 +26,9 @@ lane-detection-cs29/
 |
 ├── image_processing/         [มโนรินทร์] สคริปต์สำหรับการประมวลผลภาพ (OpenCV)
 │   ├── edge_detection.py    ← Pipeline หลักสำหรับตรวจจับเส้นจราจร
-|   ├── lane_tracker.py
+|   ├── lane_tracker.py      ← สแกนหาพิกเซลของเส้นถนนจากล่างขึ้นบน
 │   ├── main.py              ← ไฟล์รันโปรแกรมหลัก (ฝั่ง Image Processing)
-│   ├── perspective.py
+│   ├── perspective.py       ← บิดมุมมองภาพจากมุมมองปกติ (Front-View) ให้กลายเป็นมุมมองนก (Bird's-Eye View) เพื่อให้เส้นขอบถนนขนานกัน
 │   └── utils.py             ← ฟังก์ชันช่วยเหลือ เช่น โหลดรูปภาพและวิดีโอ
 │
 ├── machine_learning/        ←  [มโนรินทร์] (ML)
