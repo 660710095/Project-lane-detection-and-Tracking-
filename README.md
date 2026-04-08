@@ -79,7 +79,8 @@ pip install opencv-python numpy matplotlib
 ```bash
 # การสร้างและสลับไป Branch ของตัวเอง
 git checkout -b image-processing  # สำหรับมโนรินทร์
-git checkout -b machine-learning  # สำหรับปั้ม
+git checkout -b machine-learning  # สำหรับมโนรินทร์
+git checkout -b web_app  # สำหรับปั้ม
 
 # การอัปเดตโค้ดขึ้น GitHub
 git add .
