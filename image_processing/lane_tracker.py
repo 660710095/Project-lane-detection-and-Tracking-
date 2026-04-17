@@ -5,8 +5,10 @@ def sliding_window(binary_warped):
     """
     ใช้เทคนิค Sliding Window หาพิกัดของพิกเซลที่เป็นเส้นถนน
     """
-    # 1. หาจุดเริ่มต้นของเส้นซ้ายและขวาจากครึ่งล่างของภาพด้วย Histogram
-    histogram = np.sum(binary_warped[binary_warped.shape[0]//2:, :], axis=0)
+    # 1. หาจุดเริ่มต้นของเส้นซ้ายและขวาจาก 1/3 ด้านล่างของภาพด้วย Histogram
+    # (ปรับจากครึ่งล่างเป็น 1/3 ด้านล่าง เพื่อไม่ให้ทางโค้งช่วงกลางภาพมาดึงค่าจุดเริ่มต้นผิดไป)
+    bottom_third = binary_warped.shape[0] * 2 // 3
+    histogram = np.sum(binary_warped[bottom_third:, :], axis=0)
     
     # สร้างภาพเปล่าไว้สำหรับวาดกรอบสีๆ เพื่อดูการทำงาน (Debug)
     out_img = np.dstack((binary_warped, binary_warped, binary_warped)) * 255
@@ -16,9 +18,9 @@ def sliding_window(binary_warped):
     rightx_base = np.argmax(histogram[midpoint:]) + midpoint
 
     # 2. ตั้งค่า Sliding Window
-    nwindows = 9 # จำนวนหน้าต่างที่จะใช้สแกนจากล่างขึ้นบน
-    margin = 100 # ความกว้างของหน้าต่าง (ซ้าย-ขวา จากจุดศูนย์กลาง)
-    minpix = 50  # จำนวนพิกเซลขั้นต่ำที่จะให้เลื่อนจุดศูนย์กลางหน้าต่าง
+    nwindows = 25 # เพิ่มจำนวนหน้าต่าง (จาก 15 -> 25) ทำให้หน้าต่างเตี้ยลงและปรับตัวตามขอบโค้งได้ถี่และละเอียดขึ้น
+    margin = 100  # ขยายขอบเขตความกว้างหน้าต่าง (จาก 80 -> 100) ป้องกันเส้นหลุดกรอบเวลาเจอโค้งหักศอก
+    minpix = 40   # ลดจำนวนพิกเซลขั้นต่ำลงเล็กน้อยให้สัมพันธ์กับหน้าต่างที่เล็กลง
 
     window_height = int(binary_warped.shape[0] // nwindows)
     
@@ -85,6 +87,67 @@ def sliding_window(binary_warped):
 
     return left_fit, right_fit, out_img
 
+def search_from_prior(binary_warped, left_fit, right_fit):
+    """
+    ค้นหาเส้นเลนโดยอ้างอิงจากสมการเส้นโค้งของเฟรมก่อนหน้า (Search from Prior)
+    วิธีนี้จะเร็วกว่าและเสถียรกว่าการทำ Sliding Window ใหม่ทั้งหมด
+    """
+    # 1. ตั้งค่าขอบเขตการค้นหา (Margin) จากเส้นเดิม
+    margin = 100  # ปรับให้สอดคล้องกับ Sliding window ด้านบนเพื่อให้จับช่วงโค้งได้กว้างขึ้น
+
+    # 2. หาตำแหน่งของพิกเซลที่ไม่ใช่สีดำทั้งหมดในภาพ
+    nonzero = binary_warped.nonzero()
+    nonzeroy = np.array(nonzero[0])
+    nonzerox = np.array(nonzero[1])
+
+    # 3. สร้างขอบเขตการค้นหาจากสมการเส้นโค้งของเฟรมที่แล้ว
+    # พิกเซลที่จะถูกพิจารณาคือพิกเซลที่อยู่ในระยะ margin จากเส้นเดิมเท่านั้น
+    left_lane_inds = ((nonzerox > (left_fit[0]*(nonzeroy**2) + left_fit[1]*nonzeroy + left_fit[2] - margin)) & 
+                      (nonzerox < (left_fit[0]*(nonzeroy**2) + left_fit[1]*nonzeroy + left_fit[2] + margin)))
+    
+    right_lane_inds = ((nonzerox > (right_fit[0]*(nonzeroy**2) + right_fit[1]*nonzeroy + right_fit[2] - margin)) & 
+                       (nonzerox < (right_fit[0]*(nonzeroy**2) + right_fit[1]*nonzeroy + right_fit[2] + margin)))
+
+    # 4. ดึงพิกัด (x, y) ของพิกเซลที่เป็นเส้น
+    leftx = nonzerox[left_lane_inds]
+    lefty = nonzeroy[left_lane_inds] 
+    rightx = nonzerox[right_lane_inds]
+    righty = nonzeroy[right_lane_inds]
+
+    # 5. คำนวณสมการพาราโบลาใหม่
+    new_left_fit, new_right_fit = None, None
+    if len(leftx) > 0 and len(lefty) > 0:
+        new_left_fit = np.polyfit(lefty, leftx, 2)
+    if len(rightx) > 0 and len(righty) > 0:
+        new_right_fit = np.polyfit(righty, rightx, 2)
+
+    # 6. สร้างภาพสำหรับแสดงผล (Visualization)
+    out_img = np.dstack((binary_warped, binary_warped, binary_warped))*255
+    window_img = np.zeros_like(out_img)
+    
+    # ระบายสีพิกเซลที่ถูกตรวจจับ (ซ้าย=แดง, ขวา=น้ำเงิน)
+    out_img[nonzeroy[left_lane_inds], nonzerox[left_lane_inds]] = [255, 0, 0]
+    out_img[nonzeroy[right_lane_inds], nonzerox[right_lane_inds]] = [0, 0, 255]
+
+    # สร้างพื้นที่ค้นหาสีเขียวโปร่งแสง
+    ploty = np.linspace(0, binary_warped.shape[0]-1, binary_warped.shape[0])
+    left_fitx = left_fit[0]*ploty**2 + left_fit[1]*ploty + left_fit[2]
+    right_fitx = right_fit[0]*ploty**2 + right_fit[1]*ploty + right_fit[2]
+
+    left_line_window1 = np.array([np.transpose(np.vstack([left_fitx-margin, ploty]))])
+    left_line_window2 = np.array([np.flipud(np.transpose(np.vstack([left_fitx+margin, ploty])))])
+    left_line_pts = np.hstack((left_line_window1, left_line_window2))
+    
+    right_line_window1 = np.array([np.transpose(np.vstack([right_fitx-margin, ploty]))])
+    right_line_window2 = np.array([np.flipud(np.transpose(np.vstack([right_fitx+margin, ploty])))])
+    right_line_pts = np.hstack((right_line_window1, right_line_window2))
+
+    cv2.fillPoly(window_img, np.int_([left_line_pts]), (0, 255, 0))
+    cv2.fillPoly(window_img, np.int_([right_line_pts]), (0, 255, 0))
+    result = cv2.addWeighted(out_img, 1, window_img, 0.3, 0)
+
+    return new_left_fit, new_right_fit, result
+
 # ===========================================================================
 
 def draw_lane_area(original_img, binary_warped, left_fit, right_fit, Minv):
@@ -110,7 +173,12 @@ def draw_lane_area(original_img, binary_warped, left_fit, right_fit, Minv):
     pts = np.hstack((pts_left, pts_right))
 
     # ระบายสีเขียวลงในพื้นที่ระหว่างเส้นซ้าย-ขวา
-    cv2.fillPoly(color_warp, np.int_([pts]), (0, 255, 0))
+    cv2.fillPoly(color_warp, np.int32([pts]), (0, 255, 0))
+
+    # วาดเส้นทึบที่ขอบถนนทั้งสองข้าง เพื่อเน้นขอบโค้งให้คมชัดและดูเกาะถนนมากขึ้น
+    # ความหนา (thickness=25) เมื่อถูกบิดมุมมองกลับจะทำให้ดูมีมิติ (เส้นเล็กลงเมื่ออยู่ไกล)
+    cv2.polylines(color_warp, np.int32([pts_left]), isClosed=False, color=(255, 0, 0), thickness=25)  # ขอบซ้าย (สีน้ำเงิน)
+    cv2.polylines(color_warp, np.int32([pts_right]), isClosed=False, color=(0, 0, 255), thickness=25) # ขอบขวา (สีแดง)
 
     # บิดภาพกลับไปยังมุมมองปกติ (ใช้ Minv)
     newwarp = cv2.warpPerspective(color_warp, Minv, (original_img.shape[1], original_img.shape[0])) 
