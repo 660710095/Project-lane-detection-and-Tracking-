@@ -210,9 +210,14 @@ __marimo__/
 
 # Dataset & Videos (ไฟล์ใหญ่เกินไป)
 data/
+datasets/
+kitti_masks/
+kitti_labels/
 *.mp4
 *.avi
 *.mov
+*.png
+*.jpg
 
 # Model weights
 *.pt
@@ -220,4 +225,5 @@ data/
 *.h5
 
 # Results
+result/
 results/

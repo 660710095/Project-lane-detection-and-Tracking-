@@ -49,21 +49,21 @@ def apply_color_and_gradient_threshold(img, s_thresh=(100, 255), l_thresh=(220, 
 
     # 2. Threshold S-channel (Saturation) เพื่อหาเส้นสี (เหลือง, ขาว)
     s_binary = np.zeros_like(s_channel)
-    s_binary[(s_channel >= 100) & (s_channel <= 255)] = 1 # ผ่อนปรนให้จับสีเหลืองจางๆ ของถนนไทยได้
+    s_binary[(s_channel >= 70) & (s_channel <= 255)] = 1 # ลดค่าต่ำสุดลง เพื่อดึงเส้นที่สีซีดจางจากแสงแดด
 
     # 3. Threshold L-channel (Lightness) เพื่อหาเส้นสีขาวสว่าง
     clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
     l_channel_eq = clahe.apply(l_channel) 
     
     l_binary = np.zeros_like(l_channel_eq)
-    l_binary[(l_channel_eq >= 210) & (l_channel_eq <= 255)] = 1 # ดันค่าเกณฑ์ให้สูงขึ้นได้เพราะภาพชัดขึ้นแล้ว
+    l_binary[(l_channel_eq >= 195) & (l_channel_eq <= 255)] = 1 # ลดค่าต่ำสุดลง เพื่อช่วยจับเส้นประที่โดนแดดสะท้อนจนกลืนไปกับถนน
     # 4. ใช้ Sobel Operator ในแนวแกน X กับภาพ Grayscale
     gray = to_grayscale(img)
     sobelx = cv2.Sobel(gray, cv2.CV_64F, 1, 0, ksize=3)
     abs_sobelx = np.absolute(sobelx)
     scaled_sobel = np.uint8(255 * abs_sobelx / np.max(abs_sobelx))
     sx_binary = np.zeros_like(scaled_sobel)
-    sx_binary[(scaled_sobel >= 30) & (scaled_sobel <= 150)] = 1 # กรอง Noise เส้นประที่เบลอ
+    sx_binary[(scaled_sobel >= 20) & (scaled_sobel <= 200)] = 1 # ขยายช่วงกว้างขึ้น เพื่อดึงขอบจางๆ ของเส้นประเวลาเข้าโค้ง
 
     # 5. รวมผลลัพธ์ทั้งหมดเข้าด้วยกัน (เส้นสี หรือ เส้นขาวสว่าง หรือ เส้นแนวตั้ง)
     combined_binary = np.zeros_like(sx_binary)
@@ -72,9 +72,17 @@ def apply_color_and_gradient_threshold(img, s_thresh=(100, 255), l_thresh=(220, 
 
 #===========================================================================
 
+def apply_morphological_closing(binary_img, kernel_size=11):
+    """ใช้เทคนิค Closing เพื่อเชื่อมเส้นประที่ขาดให้เป็นเส้นทึบ และลบจุดบอด"""
+    kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (kernel_size, kernel_size))
+    return cv2.morphologyEx(binary_img, cv2.MORPH_CLOSE, kernel)
+
+#===========================================================================
+
 def full_pipeline(img, lane_processor=None):
     # 1. ใช้ Color & Gradient Thresholding เพื่อให้ได้ภาพ Binary ที่มีคุณภาพ
     combined_binary = apply_color_and_gradient_threshold(img)
+    combined_binary = apply_morphological_closing(combined_binary, kernel_size=9)
     roi = region_of_interest(combined_binary, img.shape)
 
     # 2. Perspective Transform (บิดภาพ ROI เป็น Bird's-Eye View)

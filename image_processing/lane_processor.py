@@ -1,7 +1,7 @@
 import numpy as np
 
 class LaneProcessor:
-    def __init__(self, history_length=7):
+    def __init__(self, history_length=6):
         """
         คลาสสำหรับจัดการสถานะของเส้นเลน (Lane State) เพื่อให้ผลลัพธ์ในวิดีโอนิ่งขึ้น
         - เก็บประวัติของสมการเส้นเลน (polynomial fits)
@@ -23,12 +23,43 @@ class LaneProcessor:
         รับค่า fit จากเฟรมปัจจุบัน, ทำ Sanity Check, อัปเดตประวัติ, และคืนค่า fit ที่ผ่านการเฉลี่ยแล้ว
         """
 
+        if left_fit is None and right_fit is None:
+            self.detected = False
+            return self.current_left_fit, self.current_right_fit
+
+        # 1. บังคับระยะห่างของเลนให้คงที่เสมอ (ลดลงเหลือ 45% ของความกว้างภาพ เพื่อให้กรอบเขียวแคบลงนิดนึง)
+        expected_width = int(img_shape[1] * 0.45)
+        y_bottom = img_shape[0] - 1
+
+        # คัดลอกค่าออกมาเป็นตัวแปรใหม่ เพื่อป้องกันไม่ให้กระทบกับประวัติเก่า (แก้ปัญหาไม่มีเส้นสีเขียว)
+        new_left_fit = np.copy(left_fit) if left_fit is not None else None
+        new_right_fit = np.copy(right_fit) if right_fit is not None else None
+
+        # 2. ถ้าระยะห่างเพี้ยนมาก หรือความโค้งต่างกัน ให้อิงเส้นที่แม่นยำกว่าเป็นหลัก (ล็อกเส้นไม่ให้หด/ยืด)
+        if new_left_fit is not None and new_right_fit is not None:
+            left_x_bottom = new_left_fit[0]*y_bottom**2 + new_left_fit[1]*y_bottom + new_left_fit[2]
+            right_x_bottom = new_right_fit[0]*y_bottom**2 + new_right_fit[1]*y_bottom + new_right_fit[2]
+            current_width = right_x_bottom - left_x_bottom
+
+            # ** แก้ปัญหาเส้นเบี้ยวตอนเข้าโค้ง **
+            # ลบการบังคับให้เส้นขนานกัน (copy curvature) เมื่อเจอทั้งสองเส้นทิ้งไป
+            # เพราะในความเป็นจริง ตอนเข้าโค้ง เส้นเลนในและเลนนอกจะมีความโค้งไม่เท่ากัน
+            # เราจะปล่อยให้สมการเป็นอิสระ และให้ Sanity Check + History เป็นตัวกรองและทำให้เส้นนิ่งแทน
+            pass
+
+        # 3. กรณีเจอแค่เส้นเดียว ก็ใช้วิธีล็อกความกว้างสร้างเส้นฝั่งตรงข้ามขึ้นมาเลย
+        elif new_left_fit is not None and new_right_fit is None:
+            new_right_fit = np.copy(new_left_fit)
+            new_right_fit[2] += expected_width
+        elif new_right_fit is not None and new_left_fit is None:
+            new_left_fit = np.copy(new_right_fit)
+            new_left_fit[2] -= expected_width
+
         # Sanity Check
-        if self._sanity_check_ok(left_fit, right_fit, img_shape):
+        if self._sanity_check_ok(new_left_fit, new_right_fit, img_shape):
             self.detected = True
-            # ถ้าผ่าน, เพิ่ม fit ปัจจุบันลงในประวัติ
-            self.left_fit_history.append(left_fit)
-            self.right_fit_history.append(right_fit)
+            self.left_fit_history.append(new_left_fit)
+            self.right_fit_history.append(new_right_fit)
 
             # รักษาความยาวของประวัติ (ลบอันที่เก่าที่สุดออก)
             if len(self.left_fit_history) > self.history_length:
@@ -40,13 +71,7 @@ class LaneProcessor:
             self.current_right_fit = np.mean(self.right_fit_history, axis=0)
 
         else:
-            # ถ้าไม่ผ่าน Sanity Check
             self.detected = False
-            # เมื่อ Sanity Check ไม่ผ่าน, เราจะไม่ทำการอัปเดตใดๆ กับ self.current_left_fit
-            # และ self.current_right_fit มันจะยังคงเป็นค่าล่าสุดที่ผ่านการตรวจสอบ
-            # ซึ่งจะช่วยให้เส้นเลน "ค้าง" อยู่ในตำแหน่งที่ดีล่าสุด แทนที่จะกระตุกหรือหายไป
-            # หากยังไม่เคยมีค่าที่ดีเลย (เช่น เฟรมแรกๆ) ค่าก็จะเป็น None อยู่แล้ว
-            pass
 
         return self.current_left_fit, self.current_right_fit
 
@@ -67,8 +92,11 @@ class LaneProcessor:
         right_fitx = right_fit[0] * ploty**2 + right_fit[1] * ploty + right_fit[2]
 
         # 2. ตรวจสอบความกว้างของเลน (Lane Width) ที่ส่วนล่างของภาพ
+        # แก้ปัญหาไม่มีเส้นสีเขียว: ปรับจากพิกเซลคงที่ เป็นสัดส่วน % ของความกว้างหน้าจอ (รองรับวิดีโอความละเอียดสูง)
         lane_width_bottom = right_fitx[-1] - left_fitx[-1]
-        if not (200 < lane_width_bottom < 850): 
+        min_width = img_shape[1] * 0.30
+        max_width = img_shape[1] * 0.60
+        if not (min_width < lane_width_bottom < max_width): 
             return False
 
         # 3. ตรวจสอบความแตกต่างของค่าสัมประสิทธิ์ (Curvature and Slope Similarity)
@@ -77,24 +105,25 @@ class LaneProcessor:
         # ค่า C (left_fit[2], right_fit[2]) บ่งบอกถึงตำแหน่งเริ่มต้น
         
         # ตรวจสอบความแตกต่างของค่า A (ความโค้ง)
-        if abs(left_fit[0] - right_fit[0]) > 0.005: # เพิ่มความยืดหยุ่นให้เส้นโค้งสองฝั่งไม่ต้องเป๊ะมาก
+        if abs(left_fit[0] - right_fit[0]) > 0.015: # ขยายความยืดหยุ่นให้มากขึ้นอีก เพื่อให้รองรับโค้งที่ลึกมากๆ
             return False
 
         # ตรวจสอบความแตกต่างของค่า B (ความชัน)
-        if abs(left_fit[1] - right_fit[1]) > 0.5: # เพิ่มความยืดหยุ่นให้ความชันของเส้นซ้าย-ขวา
+        if abs(left_fit[1] - right_fit[1]) > 0.8: # เพิ่มความยืดหยุ่น
             return False
 
         # 4. ตรวจสอบความต่อเนื่องจากเฟรมก่อนหน้า (ถ้ามี)
         if self.detected and self.current_left_fit is not None and self.current_right_fit is not None:
             # ตรวจสอบว่าค่าสัมประสิทธิ์ปัจจุบันไม่ต่างจากค่าเฉลี่ยในประวัติมากเกินไป
-            # (ค่า 0.5, 100 อาจต้องปรับจูนตามความเหมาะสม)
-            if abs(left_fit[0] - self.current_left_fit[0]) > 0.002 or \
-               abs(left_fit[1] - self.current_left_fit[1]) > 0.2 or \
-               abs(left_fit[2] - self.current_left_fit[2]) > 200:
+            # ปรับค่าจำกัดระยะแกน X (C) ให้ยืดหยุ่นตามความกว้างภาพ
+            max_c_diff = img_shape[1] * 0.40
+            if abs(left_fit[0] - self.current_left_fit[0]) > 0.01 or \
+               abs(left_fit[1] - self.current_left_fit[1]) > 1.0 or \
+               abs(left_fit[2] - self.current_left_fit[2]) > max_c_diff:
                 return False
-            if abs(right_fit[0] - self.current_right_fit[0]) > 0.002 or \
-               abs(right_fit[1] - self.current_right_fit[1]) > 0.2 or \
-               abs(right_fit[2] - self.current_right_fit[2]) > 200:
+            if abs(right_fit[0] - self.current_right_fit[0]) > 0.01 or \
+               abs(right_fit[1] - self.current_right_fit[1]) > 1.0 or \
+               abs(right_fit[2] - self.current_right_fit[2]) > max_c_diff:
                 return False
             
         return True

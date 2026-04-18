@@ -5,6 +5,11 @@ def sliding_window(binary_warped):
     """
     ใช้เทคนิค Sliding Window หาพิกัดของพิกเซลที่เป็นเส้นถนน
     """
+    # --- นำเทคนิค Closing แนวตั้งมาช่วยเชื่อมเส้นประก่อนสแกน ---
+    # ใช้ Kernel สี่เหลี่ยมผืนผ้า (กว้าง 5, สูง 35) เพื่อเชื่อมพิกเซลในแนวตั้งเข้าด้วยกันโดยไม่ดึง Noise ด้านข้าง
+    vertical_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 35))
+    binary_warped = cv2.morphologyEx(binary_warped, cv2.MORPH_CLOSE, vertical_kernel)
+
     # 1. หาจุดเริ่มต้นของเส้นซ้ายและขวาจาก 1/3 ด้านล่างของภาพด้วย Histogram
     # (ปรับจากครึ่งล่างเป็น 1/3 ด้านล่าง เพื่อไม่ให้ทางโค้งช่วงกลางภาพมาดึงค่าจุดเริ่มต้นผิดไป)
     bottom_third = binary_warped.shape[0] * 2 // 3
@@ -92,6 +97,10 @@ def search_from_prior(binary_warped, left_fit, right_fit):
     ค้นหาเส้นเลนโดยอ้างอิงจากสมการเส้นโค้งของเฟรมก่อนหน้า (Search from Prior)
     วิธีนี้จะเร็วกว่าและเสถียรกว่าการทำ Sliding Window ใหม่ทั้งหมด
     """
+    # --- นำเทคนิค Closing แนวตั้งมาช่วยเชื่อมเส้นประก่อนสแกน ---
+    vertical_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 35))
+    binary_warped = cv2.morphologyEx(binary_warped, cv2.MORPH_CLOSE, vertical_kernel)
+
     # 1. ตั้งค่าขอบเขตการค้นหา (Margin) จากเส้นเดิม
     margin = 100  # ปรับให้สอดคล้องกับ Sliding window ด้านบนเพื่อให้จับช่วงโค้งได้กว้างขึ้น
 

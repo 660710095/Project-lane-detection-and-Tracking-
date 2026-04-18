@@ -69,8 +69,8 @@ def test_video(video_path, output_path, raw_dir=None, processed_dir=None, roi_vi
     if tracker_video_path:
         tracker_out = cv2.VideoWriter(tracker_video_path, fourcc, fps, (width, height))
 
-    # สร้าง instance ของ LaneProcessor เพื่อทำให้เส้นนิ่งขึ้น
-    lane_processor = LaneProcessor(history_length=10)
+    # ลด history_length ลงเพื่อให้เส้นตอบสนองกับทางโค้งลึกๆ ได้ทัน (แก้ปัญหาเส้นหลุด/หลอน)
+    lane_processor = LaneProcessor(history_length=8)
 
     count = 0
     #count frames in Video
@@ -264,7 +264,7 @@ if __name__ == "__main__":
 
     # =========================================================================
     # โหมดประมวลผลวิดีโอและบันทึกเป็นไฟล์วิดีโอโดยตรง (รวดเร็วและไม่เปลืองพื้นที่)
-    input_video = os.path.join(project_root, "data", "videos", "Video Project 1.mp4")
+    input_video = os.path.join(project_root, "data", "videos", "Video Project 2.mp4")
     video_name = os.path.splitext(os.path.basename(input_video))[0]
     safe_video_name = video_name.replace(" ", "_")
     
