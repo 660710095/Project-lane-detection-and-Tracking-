@@ -46,9 +46,10 @@ Project-lane-detection-and-Tracking-/
 ```
 #### วิธีการทำงานร่วมกัน (Git Workflow)
 สำหรับผู้ร่วมพัฒนา กรุณาสร้าง Branch ของตัวเองก่อนเริ่มเขียนโค้ดเพื่อป้องกันโค้ดทับซ้อนกัน
-## การติดตั้ง
+## การติดตั้ง เครื่องมือต่างๆ
 ```bash
 pip install opencv-python numpy matplotlib
+pip install ultralytics
 ```
 
 ## วิธี Clone และเริ่มทำงาน
