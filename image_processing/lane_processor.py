@@ -1,5 +1,16 @@
 import numpy as np
 
+# ค่าคงที่สำหรับ Sanity Check เพื่อให้อ่านง่ายและปรับแก้สะดวก
+SANITY_MIN_WIDTH_RATIO = 0.30   # ความกว้างเลนขั้นต่ำ (สัดส่วนเทียบกับความกว้างภาพ)
+SANITY_MAX_WIDTH_RATIO = 0.60   # ความกว้างเลนสูงสุด
+SANITY_MAX_CURVATURE_DIFF = 0.015 # ความต่างของความโค้ง (ค่า A) สูงสุดที่ยอมรับได้
+SANITY_MAX_SLOPE_DIFF = 0.8       # ความต่างของความชัน (ค่า B) สูงสุดที่ยอมรับได้
+
+# ค่าคงที่สำหรับเช็คความต่อเนื่องกับเฟรมก่อนหน้า
+HISTORY_MAX_CURVATURE_DIFF = 0.01
+HISTORY_MAX_SLOPE_DIFF = 1.0
+# HISTORY_MAX_POS_DIFF_RATIO ถูกกำหนดแบบ dynamic ในฟังก์ชัน
+
 class LaneProcessor:
     def __init__(self, history_length=6):
         """
@@ -94,36 +105,36 @@ class LaneProcessor:
         # 2. ตรวจสอบความกว้างของเลน (Lane Width) ที่ส่วนล่างของภาพ
         # แก้ปัญหาไม่มีเส้นสีเขียว: ปรับจากพิกเซลคงที่ เป็นสัดส่วน % ของความกว้างหน้าจอ (รองรับวิดีโอความละเอียดสูง)
         lane_width_bottom = right_fitx[-1] - left_fitx[-1]
-        min_width = img_shape[1] * 0.30
-        max_width = img_shape[1] * 0.60
-        if not (min_width < lane_width_bottom < max_width): 
+        min_width = img_shape[1] * SANITY_MIN_WIDTH_RATIO
+        max_width = img_shape[1] * SANITY_MAX_WIDTH_RATIO
+        if not (min_width < lane_width_bottom < max_width):
             return False
 
         # 3. ตรวจสอบความแตกต่างของค่าสัมประสิทธิ์ (Curvature and Slope Similarity)
         # ค่า A (left_fit[0], right_fit[0]) บ่งบอกถึงความโค้ง
         # ค่า B (left_fit[1], right_fit[1]) บ่งบอกถึงความชัน
         # ค่า C (left_fit[2], right_fit[2]) บ่งบอกถึงตำแหน่งเริ่มต้น
-        
+
         # ตรวจสอบความแตกต่างของค่า A (ความโค้ง)
-        if abs(left_fit[0] - right_fit[0]) > 0.015: # ขยายความยืดหยุ่นให้มากขึ้นอีก เพื่อให้รองรับโค้งที่ลึกมากๆ
+        if abs(left_fit[0] - right_fit[0]) > SANITY_MAX_CURVATURE_DIFF:
             return False
 
         # ตรวจสอบความแตกต่างของค่า B (ความชัน)
-        if abs(left_fit[1] - right_fit[1]) > 0.8: # เพิ่มความยืดหยุ่น
+        if abs(left_fit[1] - right_fit[1]) > SANITY_MAX_SLOPE_DIFF:
             return False
 
         # 4. ตรวจสอบความต่อเนื่องจากเฟรมก่อนหน้า (ถ้ามี)
         if self.detected and self.current_left_fit is not None and self.current_right_fit is not None:
             # ตรวจสอบว่าค่าสัมประสิทธิ์ปัจจุบันไม่ต่างจากค่าเฉลี่ยในประวัติมากเกินไป
             # ปรับค่าจำกัดระยะแกน X (C) ให้ยืดหยุ่นตามความกว้างภาพ
-            max_c_diff = img_shape[1] * 0.40
-            if abs(left_fit[0] - self.current_left_fit[0]) > 0.01 or \
-               abs(left_fit[1] - self.current_left_fit[1]) > 1.0 or \
+            max_c_diff = img_shape[1] * 0.40 # 40% of image width
+            if abs(left_fit[0] - self.current_left_fit[0]) > HISTORY_MAX_CURVATURE_DIFF or \
+               abs(left_fit[1] - self.current_left_fit[1]) > HISTORY_MAX_SLOPE_DIFF or \
                abs(left_fit[2] - self.current_left_fit[2]) > max_c_diff:
                 return False
-            if abs(right_fit[0] - self.current_right_fit[0]) > 0.01 or \
-               abs(right_fit[1] - self.current_right_fit[1]) > 1.0 or \
+            if abs(right_fit[0] - self.current_right_fit[0]) > HISTORY_MAX_CURVATURE_DIFF or \
+               abs(right_fit[1] - self.current_right_fit[1]) > HISTORY_MAX_SLOPE_DIFF or \
                abs(right_fit[2] - self.current_right_fit[2]) > max_c_diff:
                 return False
-            
+
         return True

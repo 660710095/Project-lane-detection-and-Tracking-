@@ -22,17 +22,11 @@ def apply_canny(blurred, T_Low=50, T_High=100):
 
 #===========================================================================
 
-def region_of_interest(edges, img_shape):
-    h, w = img_shape[:2]
+def region_of_interest(edges, vertices):
+    h, w = vertices[:2]
     mask = np.zeros_like(edges)
-    # ใช้พิกัดเดียวกับ src ใน perspective.py เพื่อความสอดคล้องกัน
-    triangle = np.array([[
-        (int(w * 0.20), int(h * 0.95)),  # ล่างซ้าย (ซิงค์กับ perspective.py)
-        (int(w * 0.45), int(h * 0.62)),  # บนซ้าย (ซิงค์กับ perspective.py)
-        (int(w * 0.55), int(h * 0.62)),  # บนขวา (ซิงค์กับ perspective.py)
-        (int(w * 0.85), int(h * 0.95))   # ล่างขวา (ซิงค์กับ perspective.py)
-    ]], dtype=np.int32)
-    cv2.fillPoly(mask, triangle, 255)
+    # สร้างพื้นที่ mask จากพิกัด vertices ที่ได้รับมา
+    cv2.fillPoly(mask, [vertices.astype(np.int32)], 255)
     return cv2.bitwise_and(edges, mask)
 #===========================================================================
 
@@ -83,10 +77,10 @@ def full_pipeline(img, lane_processor=None):
     # 1. ใช้ Color & Gradient Thresholding เพื่อให้ได้ภาพ Binary ที่มีคุณภาพ
     combined_binary = apply_color_and_gradient_threshold(img)
     combined_binary = apply_morphological_closing(combined_binary, kernel_size=9)
-    roi = region_of_interest(combined_binary, img.shape)
 
     # 2. Perspective Transform (บิดภาพ ROI เป็น Bird's-Eye View)
     M, Minv, src_points = get_perspective_matrices(img.shape)
+    roi = region_of_interest(combined_binary, src_points)
     binary_warped = warp_image(roi, M) 
     
     # 3. Lane Tracking (สแกนหาเส้นโค้ง)
