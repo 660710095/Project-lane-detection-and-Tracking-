@@ -10,10 +10,10 @@ def sliding_window(binary_warped):
     vertical_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 35))
     binary_warped = cv2.morphologyEx(binary_warped, cv2.MORPH_CLOSE, vertical_kernel)
 
-    # 1. หาจุดเริ่มต้นของเส้นซ้ายและขวาจาก 1/3 ด้านล่างของภาพด้วย Histogram
-    # (ปรับจากครึ่งล่างเป็น 1/3 ด้านล่าง เพื่อไม่ให้ทางโค้งช่วงกลางภาพมาดึงค่าจุดเริ่มต้นผิดไป)
-    bottom_third = binary_warped.shape[0] * 2 // 3
-    histogram = np.sum(binary_warped[bottom_third:, :], axis=0)
+    # 1. หาจุดเริ่มต้นของเส้นซ้ายและขวาจาก 1/4 ด้านล่างของภาพด้วย Histogram
+    # (ปรับจาก 1/3 เป็น 1/4 ด้านล่าง เพื่อให้หาจุดเริ่มต้นได้แม่นขึ้นในทางโค้ง)
+    bottom_quarter = binary_warped.shape[0] * 3 // 4
+    histogram = np.sum(binary_warped[bottom_quarter:, :], axis=0)
     
     # สร้างภาพเปล่าไว้สำหรับวาดกรอบสีๆ เพื่อดูการทำงาน (Debug)
     out_img = np.dstack((binary_warped, binary_warped, binary_warped)) * 255
@@ -24,7 +24,7 @@ def sliding_window(binary_warped):
 
     # 2. ตั้งค่า Sliding Window
     nwindows = 25 # เพิ่มจำนวนหน้าต่าง (จาก 15 -> 25) ทำให้หน้าต่างเตี้ยลงและปรับตัวตามขอบโค้งได้ถี่และละเอียดขึ้น
-    margin = 100  # ขยายขอบเขตความกว้างหน้าต่าง (จาก 80 -> 100) ป้องกันเส้นหลุดกรอบเวลาเจอโค้งหักศอก
+    margin = 120  # ขยายขอบเขตความกว้างหน้าต่าง (จาก 100 -> 120) ป้องกันเส้นหลุดกรอบเวลาเจอโค้งหักศอก
     minpix = 40   # ลดจำนวนพิกเซลขั้นต่ำลงเล็กน้อยให้สัมพันธ์กับหน้าต่างที่เล็กลง
 
     window_height = int(binary_warped.shape[0] // nwindows)
@@ -84,10 +84,12 @@ def sliding_window(binary_warped):
     righty = nonzeroy[right_lane_inds]
 
     # 4. คำนวณสมการพาราโบลา (Polynomial Degree 2)
+    # กำหนดจำนวนพิกเซลขั้นต่ำ เพื่อป้องกันการ fit จากจุดน้อยเกินไป (ลดอาการเส้นหลอน)
+    MIN_LANE_PIXELS = 300
     left_fit, right_fit = None, None
-    if len(leftx) > 0 and len(lefty) > 0:
+    if len(leftx) > MIN_LANE_PIXELS:
         left_fit = np.polyfit(lefty, leftx, 2)
-    if len(rightx) > 0 and len(righty) > 0:
+    if len(rightx) > MIN_LANE_PIXELS:
         right_fit = np.polyfit(righty, rightx, 2)
 
     return left_fit, right_fit, out_img
@@ -102,7 +104,7 @@ def search_from_prior(binary_warped, left_fit, right_fit):
     binary_warped = cv2.morphologyEx(binary_warped, cv2.MORPH_CLOSE, vertical_kernel)
 
     # 1. ตั้งค่าขอบเขตการค้นหา (Margin) จากเส้นเดิม
-    margin = 100  # ปรับให้สอดคล้องกับ Sliding window ด้านบนเพื่อให้จับช่วงโค้งได้กว้างขึ้น
+    margin = 120  # ปรับให้สอดคล้องกับ Sliding window ด้านบนเพื่อให้จับช่วงโค้งได้กว้างขึ้น
 
     # 2. หาตำแหน่งของพิกเซลที่ไม่ใช่สีดำทั้งหมดในภาพ
     nonzero = binary_warped.nonzero()
@@ -124,10 +126,12 @@ def search_from_prior(binary_warped, left_fit, right_fit):
     righty = nonzeroy[right_lane_inds]
 
     # 5. คำนวณสมการพาราโบลาใหม่
+    # กำหนดจำนวนพิกเซลขั้นต่ำเหมือน sliding_window
+    MIN_LANE_PIXELS = 300
     new_left_fit, new_right_fit = None, None
-    if len(leftx) > 0 and len(lefty) > 0:
+    if len(leftx) > MIN_LANE_PIXELS:
         new_left_fit = np.polyfit(lefty, leftx, 2)
-    if len(rightx) > 0 and len(righty) > 0:
+    if len(rightx) > MIN_LANE_PIXELS:
         new_right_fit = np.polyfit(righty, rightx, 2)
 
     # 6. สร้างภาพสำหรับแสดงผล (Visualization)

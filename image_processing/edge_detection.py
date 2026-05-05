@@ -10,63 +10,56 @@ def to_grayscale(image):
 
 #===========================================================================
 
-def gaussian_blur(image, kernel_size=5):
-    # ใช้ Gaussian blur เพื่อลด noise ในภาพ ก่อนทำ edge detection
-    return cv2.GaussianBlur(image, (kernel_size, kernel_size), 0)
-
-#===========================================================================
-
-def apply_canny(blurred, T_Low=50, T_High=100):
-    # ใช้ Canny edge detection เพื่อดึงเส้นขอบของวัตถุในภาพ
-    return cv2.Canny(blurred, T_Low, T_High)
-
 #===========================================================================
 
 def region_of_interest(edges, vertices):
-    h, w = vertices[:2]
     mask = np.zeros_like(edges)
     # สร้างพื้นที่ mask จากพิกัด vertices ที่ได้รับมา
     cv2.fillPoly(mask, [vertices.astype(np.int32)], 255)
     return cv2.bitwise_and(edges, mask)
 #===========================================================================
 
-def apply_color_and_gradient_threshold(img, s_thresh=(100, 255), l_thresh=(220, 255), sx_thresh=(20, 100)):
-    """ใช้การกรองสี (HLS) และ Gradient (Sobel) เพื่อแยกเส้นเลนออกจากภาพ
-    - S channel (Saturation) เหมาะกับการหาเส้นสีเหลือง/ขาวในสภาพแสงต่างๆ (ปรับให้กว้างขึ้นเล็กน้อย)
-    - L channel (Lightness) เหมาะกับการหาเส้นสีขาวสว่างๆ (ปรับให้กว้างขึ้นเล็กน้อย)
-    - Sobel X-gradient เหมาะกับการหาเส้นที่ค่อนข้างเป็นแนวตั้ง
+def apply_color_and_gradient_threshold(img, s_thresh=(100, 255), l_thresh=(180, 255), sx_thresh=(15, 255)):
+    """ปรับปรุงพารามิเตอร์สำหรับถนนไทย:
+    - เพิ่ม Yellow Mask (HSV) เพื่อจับเส้นสีเหลืองโดยเฉพาะ
+    - ปรับ L-channel ให้ไวขึ้นต่อเส้นที่จาง
+    - ใช้ CLAHE ช่วยดึงขอบภาพในสภาพแสงจ้า
     """
-    # 1. แปลงเป็น HLS Color Space
+    # 1. แปลงเป็น HLS และ HSV
     hls = cv2.cvtColor(img, cv2.COLOR_BGR2HLS)
-    s_channel = hls[:,:,2]
+    hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
     l_channel = hls[:,:,1]
+    s_channel = hls[:,:,2]
 
-    # 2. Threshold S-channel (Saturation) เพื่อหาเส้นสี (เหลือง, ขาว)
-    s_binary = np.zeros_like(s_channel)
-    s_binary[(s_channel >= 70) & (s_channel <= 255)] = 1 # ลดค่าต่ำสุดลง เพื่อดึงเส้นที่สีซีดจางจากแสงแดด
+    # 2. Yellow Mask (HSV) - ถนนไทยเส้นเหลืองสำคัญมาก
+    lower_yellow = np.array([15, 60, 80]) 
+    upper_yellow = np.array([45, 255, 255])
+    yellow_binary = cv2.inRange(hsv, lower_yellow, upper_yellow) // 255
 
-    # 3. Threshold L-channel (Lightness) เพื่อหาเส้นสีขาวสว่าง
-    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
-    l_channel_eq = clahe.apply(l_channel) 
-    
+    # 3. White/Bright Mask (L-channel) + CLAHE
+    # ใช้ CLAHE เพื่อปรับ Contrast เฉพาะจุด ช่วยให้เห็นเส้นขาวกลางแดดจ้า
+    clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8,8))
+    l_channel_eq = clahe.apply(l_channel)
     l_binary = np.zeros_like(l_channel_eq)
-    l_binary[(l_channel_eq >= 195) & (l_channel_eq <= 255)] = 1 # ลดค่าต่ำสุดลง เพื่อช่วยจับเส้นประที่โดนแดดสะท้อนจนกลืนไปกับถนน
-    # 4. ใช้ Sobel Operator ในแนวแกน X กับภาพ Grayscale
-    gray = to_grayscale(img)
+    l_binary[(l_channel_eq >= l_thresh[0]) & (l_channel_eq <= l_thresh[1])] = 1
+
+    # 4. Sobel X (Gradient) - เน้นขอบแนวตั้ง
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     sobelx = cv2.Sobel(gray, cv2.CV_64F, 1, 0, ksize=3)
     abs_sobelx = np.absolute(sobelx)
     scaled_sobel = np.uint8(255 * abs_sobelx / np.max(abs_sobelx))
     sx_binary = np.zeros_like(scaled_sobel)
-    sx_binary[(scaled_sobel >= 20) & (scaled_sobel <= 200)] = 1 # ขยายช่วงกว้างขึ้น เพื่อดึงขอบจางๆ ของเส้นประเวลาเข้าโค้ง
+    sx_binary[(scaled_sobel >= sx_thresh[0]) & (scaled_sobel <= sx_thresh[1])] = 1
 
-    # 5. รวมผลลัพธ์ทั้งหมดเข้าด้วยกัน (เส้นสี หรือ เส้นขาวสว่าง หรือ เส้นแนวตั้ง)
+    # 5. รวมผลลัพธ์ (เหลือง OR ขาว OR ขอบแนวตั้ง)
     combined_binary = np.zeros_like(sx_binary)
-    combined_binary[(s_binary == 1) | (l_binary == 1) | (sx_binary == 1)] = 1
+    combined_binary[(yellow_binary == 1) | (l_binary == 1) | (sx_binary == 1)] = 1
+    
     return combined_binary * 255
 
 #===========================================================================
 
-def apply_morphological_closing(binary_img, kernel_size=11):
+def apply_morphological_closing(binary_img, kernel_size=5):
     """ใช้เทคนิค Closing เพื่อเชื่อมเส้นประที่ขาดให้เป็นเส้นทึบ และลบจุดบอด"""
     kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (kernel_size, kernel_size))
     return cv2.morphologyEx(binary_img, cv2.MORPH_CLOSE, kernel)
@@ -91,6 +84,9 @@ def full_pipeline(img, lane_processor=None):
             lane_processor.current_left_fit, 
             lane_processor.current_right_fit
         )
+        # Fallback: ถ้า search_from_prior ล้มเหลว ให้กลับไปทำ sliding_window ใหม่
+        if left_fit_raw is None or right_fit_raw is None:
+            left_fit_raw, right_fit_raw, tracker_img = sliding_window(binary_warped)
     else:
         # ถ้าหาไม่เจอ หรือเป็นเฟรมแรก ให้ทำ Sliding Window ใหม่ทั้งหมด
         left_fit_raw, right_fit_raw, tracker_img = sliding_window(binary_warped)

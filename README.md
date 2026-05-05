@@ -1,87 +1,67 @@
-# 🛣️ Road Lane Detection and Tracking 
-**ระบบตรวจจับและติดตามช่องจราจรจากวิดีโอ (Image Processing vs Machine Learning)**
+# Lane Detection and Tracking for Thai Roads 🚗💨
 
-![Python](https://img.shields.io/badge/Python-3.x-blue.svg?logo=python&logoColor=white)
-![OpenCV](https://img.shields.io/badge/OpenCV-Image_Processing-green.svg?logo=opencv&logoColor=white)
-![Machine Learning](https://img.shields.io/badge/Machine_Learning-Model-orange.svg)
-![Web App](https://img.shields.io/badge/Web_App-Interface-purple.svg)
+โครงสร้างโปรเจกต์ระบบตรวจจับและติดตามเส้นเลนถนน โดยเน้นการประยุกต์ใช้กับสภาพถนนในประเทศไทย พัฒนาด้วยเทคนิค Computer Vision และ Deep Learning (U-Net)
 
-โปรเจคนี้เป็นการศึกษาและเปรียบเทียบประสิทธิภาพในการตรวจจับและติดตามเส้นแบ่งช่องจราจรจากวิดีโอกล้องหน้ารถ โดยใช้วิธีการประมวลผลภาพพื้นฐาน (OpenCV) เปรียบเทียบกับการใช้โมเดลการเรียนรู้ของเครื่อง (Machine Learning) พร้อมระบบเว็บแอปพลิเคชันสำหรับการแสดงผลการทำงาน
+## 🌟 จุดเด่นของโปรเจกต์ (Project Highlights)
+- **Thai Road Optimized:** ปรับจูนพารามิเตอร์เพื่อรับมือกับแสงจ้า, เส้นสีเหลือง, และเส้นเลนที่จางในไทย
+- **Dual-Pipeline Approach:** 
+    1. **Traditional CV:** ใช้ Color Thresholding (HLS/HSV) และ Perspective Transform เพื่อการประมวลผลที่รวดเร็ว
+    2. **Deep Learning:** ใช้ U-Net Model สำหรับการทำ Lane Segmentation ที่แม่นยำในสภาวะซับซ้อน
+- **Robust Tracking:** มีระบบ Lane Processor ช่วยให้เส้นเลนนิ่งและเสถียรด้วยเทคนิค Moving Average และ Sanity Check
 
 ---
-## Dataset
-โหลด KITTI Road Dataset ที่ https://www.cvlibs.net/datasets/kitti/eval_road.php
-- โหลด **base kit** และ **development kit**
-- แตกไฟล์วางไว้ที่ `data/kitti/training/`
 
-
-## 📂 โครงสร้างโปรเจค (Project Structure)
+## 📂 โครงสร้างโปรเจกต์ (Project Structure)
 
 ```text
-Project-lane-detection-and-Tracking-/
-│
-├── data/                       ← โฟลเดอร์เก็บชุดข้อมูลต้นฉบับ (เช่น ภาพ/วิดีโอจาก KITTI หรือกล้องหน้ารถ)
-│
-├── image_processing/           ← [มโนรินทร์] โฟลเดอร์หลักสำหรับการประมวลผลภาพ (OpenCV)
-│   ├── result/                 ← เก็บไฟล์ผลลัพธ์วิดีโอที่รันทดสอบ 
-│   ├── edge_detection.py       ← Pipeline หลักสำหรับกรองสีและดึงเส้นขอบจราจร
-│   ├── lane_processor.py       ← [ใหม่] ระบบจัดการสถานะและทำค่าเฉลี่ย (Moving Average) เพื่อลดการสั่นของเส้น
-│   ├── lane_tracker.py         ← อัลกอริทึมสแกนหาพิกเซลเส้นถนนจากล่างขึ้นบน (Sliding Window)
-│   ├── main.py                 ← ไฟล์สั่งรันโปรแกรมหลักของฝั่ง Image Processing
-│   ├── perspective.py          ← บิดมุมมองภาพจากมุมมองปกติให้กลายเป็นมุมมองนก (Bird's-Eye View)
-│   └── utils.py                ← ฟังก์ชันช่วยเหลือเบ็ดเตล็ด (เช่น โหลด/เซฟ รูปภาพและวิดีโอ)
-│
-├── machine_learning/           ← [มโนรินทร์] โฟลเดอร์สำหรับการสอน AI (Semantic Segmentation)
-│   ├── evaluate.py             ← โค้ดวัดผลและเปรียบเทียบความแม่นยำของโมเดล
-│   ├── model.py                ← โครงสร้างและสถาปัตยกรรมของโมเดล
-│   ├── predict.py              ← โค้ดสำหรับทำนายเส้นจราจรจากวิดีโอ/ภาพ ด้วยโมเดลที่เทรนแล้ว
-│   ├── train.py                ← โค้ดสำหรับดึงข้อมูลและสั่งรันฝึกสอน (Train) AI โมเดล
-│   └── README.md               ← คู่มืออธิบายการใช้งานเฉพาะส่วนของ Machine Learning
-│
-├── web_app/                    ← [ปั๊ม] ระบบเว็บแอปพลิเคชันสำหรับแสดงผลและใช้งาน
-│   ├── backend.py              ← จัดการระบบหลังบ้าน (API, การประมวลผล, การเชื่อมต่อโมเดล)
-│   └── frontend.py             ← จัดการหน้าเว็บและส่วนติดต่อผู้ใช้งาน (UI)
-│
-└── results/                    ← เก็บผลลัพธ์รวมของโปรเจกต์ โมเดล และกราฟ (ถูก Ignore ไม่นำขึ้น GitHub)
+Project-lane-detection-and-Tracking/
+├── image_processing/       # 🛠️ ส่วนประมวลผลภาพ (Traditional CV)
+│   ├── edge_detection.py   # การหาขอบภาพและกรองสี (HLS/HSV/Sobel)
+│   ├── perspective.py      # การทำ Bird's-Eye View (ปรับจูนมุมกล้องไทย)
+│   ├── lane_tracker.py     # Sliding Window และการค้นหาเส้นเลน
+│   ├── lane_processor.py   # ระบบจัดการความเสถียรของเส้นเลน (Smoothing)
+│   └── main.py             # ไฟล์หลักสำหรับรันระบบ CV
+├── machine_learning/       # 🧠 ส่วนสมองกล (Deep Learning)
+│   ├── kitti_ref/          # ไฟล์อ้างอิงและ Template จากชุดข้อมูล KITTI
+│   ├── unet_model.py       # โครงสร้างสมองกล U-Net
+│   ├── train.py            # สคริปต์สำหรับฝึกสอน AI
+│   ├── test_model.py       # สคริปต์ทดสอบ AI กับภาพและวิดีโอ
+│   └── unet_lane_model.pth # Weight ของโมเดลที่เทรนสำเร็จแล้ว
+├── tools/                  # 🔧 เครื่องมือเสริม
+│   └── extract_frames.py   # สกัดภาพจากวิดีโอไทยเพื่อทำ Dataset
+├── data/                   # 📹 ที่เก็บวิดีโอและข้อมูลดิบ
+├── dataset_for_ai/         # 📚 ชุดข้อมูลสำหรับเทรน AI (Images & Masks)
+└── web_app/                # 🌐 ส่วนการนำเสนอผ่านเว็บ
 ```
-#### วิธีการทำงานร่วมกัน (Git Workflow)
-สำหรับผู้ร่วมพัฒนา กรุณาสร้าง Branch ของตัวเองก่อนเริ่มเขียนโค้ดเพื่อป้องกันโค้ดทับซ้อนกัน
-## การติดตั้ง เครื่องมือต่างๆ
+
+---
+
+## 🚀 เริ่มต้นใช้งาน (Getting Started)
+
+### 1. การติดตั้ง (Installation)
 ```bash
-pip install opencv-python numpy matplotlib
-pip install ultralytics
+pip install -r requirements.txt
 ```
 
-## วิธี Clone และเริ่มทำงาน
+### 2. การรันระบบตรวจจับเลน (CV Version)
 ```bash
-# 1. Clone repo
-git clone https://github.com/660710095/Project-lane-detection-and-Tracking-.git
-cd Project-lane-detection-and-Tracking-
-
-# 2. สร้าง branch ของตัวเอง
-git checkout -b machine-learning
-
-# 3. ติดตั้ง library
-pip install opencv-python numpy matplotlib
+python image_processing/main.py
 ```
 
-## ความรับผิดชอบ
-| ส่วน | ผู้รับผิดชอบ |
-|------|-------------|
-| Image Processing (OpenCV) | มโนรินทร์ นันทะนิ 660710095 |
-| Machine Learning | มโนรินทร์ นันทะนิ 660710095 |
-| Web Application | ปั้ม |
-
-วิธีการทำงานร่วมกัน (Git Workflow)
-สำหรับผู้ร่วมพัฒนา กรุณาสร้าง Branch ของตัวเองก่อนเริ่มเขียนโค้ดเพื่อป้องกันโค้ดทับซ้อนกัน
+### 3. การทดสอบ AI (Deep Learning Version)
 ```bash
-# การสร้างและสลับไป Branch ของตัวเอง
-git checkout -b image-processing  # สำหรับมโนรินทร์
-git checkout -b machine-learning  # สำหรับมโนรินทร์
-git checkout -b web_app  # สำหรับปั้ม
-
-# การอัปเดตโค้ดขึ้น GitHub
-git add .
-git commit -m "อัปเดต: [ใส่รายละเอียดสิ่งที่ทำ]"
-git push origin <ชื่อ-branch-ของตัวเอง>
+python machine_learning/test_model.py
 ```
+
+---
+
+## 📈 แผนการพัฒนาถัดไป (Future Roadmap)
+- [ ] สกัดเฟรมจากวิดีโอถนนไทยเพิ่มเติมเพื่อสร้าง **Thai Lane Dataset**
+- [ ] ทำ Data Labeling (Masking) สำหรับรูปภาพถนนไทย
+- [ ] ทำ **Transfer Learning** จากโมเดลเดิมเพื่อให้ฉลาดกับถนนไทยมากขึ้น
+- [ ] พัฒนา Web Interface ให้รองรับการอัปโหลดวิดีโอเพื่อประมวลผลออนไลน์
+
+---
+**พัฒนาโดย:** Manorin  
+**อาจารย์ที่ปรึกษา:** [ชื่ออาจารย์]  
+*ส่วนหนึ่งของโครงการ Senior Project*

@@ -12,7 +12,7 @@ def test_single_image(img_path):
     img = load_image(img_path)
     
 
-    # ============= dowlaoded  from path ============
+    # ============= downloaded from path ============
     result, edges,roi, binary_warped, tracker_img = full_pipeline(img)
 
     # ============= run All pipeline util result 3 sections =======
@@ -89,8 +89,7 @@ def test_video(video_path, output_path, raw_dir=None, processed_dir=None, roi_vi
         if raw_dir:
             cv2.imwrite(os.path.join(raw_dir, f"frame_{count:04d}.png"), frame)
             
-        # run pipiline for each frame
-        # _ =  ignore edge and roi
+        # run pipeline for each frame
         # --- ปรับปรุง: เรียก Pipeline แค่ครั้งเดียวต่อเฟรม ---
         result, _, roi_img, _, tracker_img = full_pipeline(frame, lane_processor=lane_processor)
         out.write(result)
@@ -125,7 +124,7 @@ def test_video(video_path, output_path, raw_dir=None, processed_dir=None, roi_vi
         combined_display = cv2.vconcat([top_row, bottom_row])
         
         # 5. แสดงผล
-        cv2.imshow('Lane Detection Pipeline (Press Q to exit)', combined_display) # This line was modified in the original file, but I'll keep it as is.
+        cv2.imshow('Lane Detection Pipeline (Press Q to exit)', combined_display)
         
         # หน่วงเวลา 1 มิลลิวินาทีให้อัปเดตหน้าจอ และเช็คว่ามีการกดปุ่ม 'q' หรือไม่
         if cv2.waitKey(1) & 0xFF == ord('q'):
@@ -154,7 +153,7 @@ def test_kitti_batch(kitti_dir, result_dir):
         # loop for 5 pictures in kitti dataset
         img = load_image(p)
         result, _, _, _, _ = full_pipeline(img)
-        output_path = os.path.join(result_dir, f"kitti_result_{i:003}.png")
+        output_path = os.path.join(result_dir, f"kitti_result_{i:03d}.png")
         cv2.imwrite(output_path, result)
         # บันทึกผลลัพธ์เป็นไฟล์รูป
         # i:03d แปลว่าตัวเลข 3 หลัก เช่น 000, 001, 002
@@ -259,12 +258,13 @@ if __name__ == "__main__":
     # 
     # kitti_video_path = os.path.join(kitti_workspace, "kitti_batch_result.mp4")
     # print("กำลังรวมภาพผลลัพธ์ KITTI กลับเป็นวิดีโอ...")
-    # create_video_from_image_sequence(kitti_processed_dir, kitti_video_path, fps=10, prefix='kitti_result_')
+    # create_video_from_image_sequence(kitti_processed_dir, kitti_video_path, fps=10)
     # print(f"ประมวลผล KITTI เสร็จสิ้น! เช็คผลลัพธ์ได้ที่: {kitti_workspace}")
 
     # =========================================================================
     # โหมดประมวลผลวิดีโอและบันทึกเป็นไฟล์วิดีโอโดยตรง (รวดเร็วและไม่เปลืองพื้นที่)
-    input_video = os.path.join(project_root, "data", "videos", "Video Project 2.mp4")
+    SAVE_INDIVIDUAL_FRAMES = True  # ตั้งเป็น False ถ้าไม่ต้องการเซฟรูปแต่ละเฟรม (ประหยัดพื้นที่)
+    input_video = os.path.join(project_root, "data", "videos", "testcase1.mp4")
     video_name = os.path.splitext(os.path.basename(input_video))[0]
     safe_video_name = video_name.replace(" ", "_")
     
@@ -281,7 +281,9 @@ if __name__ == "__main__":
     tracker_video_path = os.path.join(workspace_dir, f"{safe_video_name}_tracker.mp4")
     
     print(f"เริ่มประมวลผลวิดีโอ: {input_video}")
-    # ส่งพาธของโฟลเดอร์เข้าไปในฟังก์ชันเพื่อให้มันแอบเซฟรูประหว่างที่รันวิดีโอไปด้วยเลย
-    test_video(input_video, final_video_path, raw_dir=raw_frames_dir, processed_dir=processed_frames_dir, 
+    # ส่งพาธของโฟลเดอร์เข้าไปในฟังก์ชันเพื่อให้มันเซฟรูประหว่างที่รันวิดีโอไปด้วย (ถ้าเปิด flag)
+    test_video(input_video, final_video_path, 
+               raw_dir=raw_frames_dir if SAVE_INDIVIDUAL_FRAMES else None, 
+               processed_dir=processed_frames_dir if SAVE_INDIVIDUAL_FRAMES else None, 
                roi_video_path=roi_video_path, tracker_video_path=tracker_video_path)
     print(f"เสร็จสมบูรณ์! เช็คไฟล์ทั้งหมด (วิดีโอและรูปแต่ละเฟรม) ได้ที่โฟลเดอร์:\n{workspace_dir}")

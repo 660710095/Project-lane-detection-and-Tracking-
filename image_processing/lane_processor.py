@@ -1,14 +1,14 @@
 import numpy as np
 
-# ค่าคงที่สำหรับ Sanity Check เพื่อให้อ่านง่ายและปรับแก้สะดวก
-SANITY_MIN_WIDTH_RATIO = 0.30   # ความกว้างเลนขั้นต่ำ (สัดส่วนเทียบกับความกว้างภาพ)
-SANITY_MAX_WIDTH_RATIO = 0.60   # ความกว้างเลนสูงสุด
-SANITY_MAX_CURVATURE_DIFF = 0.015 # ความต่างของความโค้ง (ค่า A) สูงสุดที่ยอมรับได้
-SANITY_MAX_SLOPE_DIFF = 0.8       # ความต่างของความชัน (ค่า B) สูงสุดที่ยอมรับได้
+# ค่าคงที่สำหรับ Sanity Check (ปรับจูนสำหรับถนนไทย)
+SANITY_MIN_WIDTH_RATIO = 0.20   # ลดค่าขั้นต่ำเพื่อให้รองรับเลนที่ดูแคบลงเวลาขึ้นเนิน/ลงเนิน
+SANITY_MAX_WIDTH_RATIO = 0.80   # เพิ่มค่าสูงสุดเพื่อรองรับเลนกว้างพิเศษ (เช่น ทางด่วน) หรือกล้องเลนส์กว้าง (Wide Angle)
+SANITY_MAX_CURVATURE_DIFF = 0.025 # เพิ่มความยืดหยุ่นให้สมการเส้นซ้าย-ขวาต่างกันได้มากขึ้นในทางโค้งหักศอก
+SANITY_MAX_SLOPE_DIFF = 1.0       # ยอมให้ทิศทางเส้นต่างกันได้มากขึ้นเล็กน้อย
 
 # ค่าคงที่สำหรับเช็คความต่อเนื่องกับเฟรมก่อนหน้า
-HISTORY_MAX_CURVATURE_DIFF = 0.01
-HISTORY_MAX_SLOPE_DIFF = 1.0
+HISTORY_MAX_CURVATURE_DIFF = 0.01   # ลดลงเพื่อไม่ให้รูปร่างเส้นเปลี่ยนเร็วเกินไป
+HISTORY_MAX_SLOPE_DIFF = 0.5        # ลดลงเพื่อไม่ให้เส้นสวิงเปลี่ยนทิศทางเร็วเกินไป
 # HISTORY_MAX_POS_DIFF_RATIO ถูกกำหนดแบบ dynamic ในฟังก์ชัน
 
 class LaneProcessor:
@@ -46,17 +46,13 @@ class LaneProcessor:
         new_left_fit = np.copy(left_fit) if left_fit is not None else None
         new_right_fit = np.copy(right_fit) if right_fit is not None else None
 
-        # 2. ถ้าระยะห่างเพี้ยนมาก หรือความโค้งต่างกัน ให้อิงเส้นที่แม่นยำกว่าเป็นหลัก (ล็อกเส้นไม่ให้หด/ยืด)
+        # 2. ถ้าเจอทั้งสองเส้น ปล่อยให้สมการเป็นอิสระ (เส้นในและเส้นนอกโค้งมีความโค้งไม่เท่ากัน)
         if new_left_fit is not None and new_right_fit is not None:
-            left_x_bottom = new_left_fit[0]*y_bottom**2 + new_left_fit[1]*y_bottom + new_left_fit[2]
-            right_x_bottom = new_right_fit[0]*y_bottom**2 + new_right_fit[1]*y_bottom + new_right_fit[2]
-            current_width = right_x_bottom - left_x_bottom
-
-            # ** แก้ปัญหาเส้นเบี้ยวตอนเข้าโค้ง **
-            # ลบการบังคับให้เส้นขนานกัน (copy curvature) เมื่อเจอทั้งสองเส้นทิ้งไป
-            # เพราะในความเป็นจริง ตอนเข้าโค้ง เส้นเลนในและเลนนอกจะมีความโค้งไม่เท่ากัน
-            # เราจะปล่อยให้สมการเป็นอิสระ และให้ Sanity Check + History เป็นตัวกรองและทำให้เส้นนิ่งแทน
-            pass
+            # เพิ่มเกราะป้องกัน: ถ้าเส้นขวาความโค้งกระโดดจากเส้นซ้ายมากไป (มักเกิดกับเส้นประ)
+            # ให้บังคับเส้นขวาขนานกับเส้นซ้าย (Parallel Lane Enforcement)
+            if abs(new_left_fit[0] - new_right_fit[0]) > 0.002:
+                new_right_fit[0] = new_left_fit[0] # ยืมค่าความโค้ง (A) จากเส้นซ้าย
+                new_right_fit[1] = new_left_fit[1] # ยืมค่าความชัน (B) จากเส้นซ้าย
 
         # 3. กรณีเจอแค่เส้นเดียว ก็ใช้วิธีล็อกความกว้างสร้างเส้นฝั่งตรงข้ามขึ้นมาเลย
         elif new_left_fit is not None and new_right_fit is None:
@@ -77,9 +73,25 @@ class LaneProcessor:
                 self.left_fit_history.pop(0)
                 self.right_fit_history.pop(0)
             
-            # คำนวณค่าเฉลี่ยจากประวัติทั้งหมดเพื่อหาค่าปัจจุบัน
-            self.current_left_fit = np.mean(self.left_fit_history, axis=0)
-            self.current_right_fit = np.mean(self.right_fit_history, axis=0)
+            # Weighted Moving Average: ลดน้ำหนักของเฟรมใหม่ลงเล็กน้อย ไม่ให้มันดึงเส้นเร็ว/ไวเกินไป
+            n = len(self.left_fit_history)
+            weights = np.array([1.2**i for i in range(n)], dtype=np.float64)
+            weights /= weights.sum()
+            new_left = np.average(self.left_fit_history, axis=0, weights=weights)
+            new_right = np.average(self.right_fit_history, axis=0, weights=weights)
+
+            # Coefficient Clamping: จำกัดไม่ให้ค่าความโค้ง (A) และความชัน (B) เปลี่ยนกระโดดมากเกินไป
+            # ช่วยล็อกให้เส้นนิ่งขึ้น ป้องกันอาการเส้นหลอนหรือสั่นกระตุก
+            if self.current_left_fit is not None:
+                max_a_change = 0.0015 # ลดลงจาก 0.005 ให้ความโค้งค่อยๆ เปลี่ยนอย่างนุ่มนวล
+                max_b_change = 0.1    # ลดลงจาก 0.5 ให้ทิศทางเส้นไม่สวิงซ้ายขวาไวไป
+                for fit_new, fit_old in [(new_left, self.current_left_fit), (new_right, self.current_right_fit)]:
+                    if fit_old is not None:
+                        fit_new[0] = np.clip(fit_new[0], fit_old[0] - max_a_change, fit_old[0] + max_a_change)
+                        fit_new[1] = np.clip(fit_new[1], fit_old[1] - max_b_change, fit_old[1] + max_b_change)
+
+            self.current_left_fit = new_left
+            self.current_right_fit = new_right
 
         else:
             self.detected = False
