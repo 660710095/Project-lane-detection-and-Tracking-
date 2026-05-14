@@ -40,11 +40,14 @@ def extract_frames(video_path, output_dir, frame_interval=15):
     print(f"เข้าไปดูรูปภาพเพื่อเตรียมทำ LabelMe ได้ที่: {output_dir}")
 
 if __name__ == "__main__":
-    script_dir = os.path.dirname(os.path.abspath(__file__))
+    # หาตำแหน่งของโฟลเดอร์โปรเจกต์หลัก (ถอยกลับไป 1 ชั้นจากโฟลเดอร์ tools)
+    tools_dir = os.path.dirname(os.path.abspath(__file__))
+    project_root = os.path.dirname(tools_dir)
     
-    # 1. เปลี่ยนตำแหน่งไฟล์วิดีโอตรงนี้ให้ตรงกับคลิปที่คุณต้องการสกัด
-    VIDEO_PATH = os.path.join(script_dir, "data", "videos", "Video Project 2.mp4") 
-    # 2. โฟลเดอร์ปลายทางที่จะเก็บรูปภาพดิบ
-    OUTPUT_DIR = os.path.join(script_dir, "data", "custom_dataset", "raw_images")
+    # 1. ระบุชื่อไฟล์วิดีโอไทยที่ต้องการสกัดเฟรม (อยู่ใน data/videos/)
+    VIDEO_PATH = os.path.join(project_root, "data", "videos", "testcase1.mp4") 
     
-    extract_frames(VIDEO_PATH, OUTPUT_DIR, frame_interval=15)
+    # 2. โฟลเดอร์ที่จะเก็บรูปภาพเพื่อนำไปทำ Dataset ต่อ
+    OUTPUT_DIR = os.path.join(project_root, "dataset_for_ai", "images")
+    
+    extract_frames(VIDEO_PATH, OUTPUT_DIR, frame_interval=30)

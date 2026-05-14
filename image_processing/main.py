@@ -73,21 +73,19 @@ def test_video(video_path, output_path, raw_dir=None, processed_dir=None, roi_vi
     lane_processor = LaneProcessor(history_length=8)
 
     count = 0
-    #count frames in Video
-
+    saved_count = 0
+    # กำหนดว่าจะบันทึกภาพดิบทุกๆ กี่เฟรม (เช่น 30 เฟรม = 1 วินาทีถ้าวิดีโอ 30fps)
+    save_interval = 30 
 
     while cap.isOpened():
         ret, frame = cap.read()
-        #Read frame by frame
-        # ret =  True if Read Frames successfully, False if no more frames or error
-        # frame = 1 Picture --> 1 Frame
-
         if not ret:
             break
             
-        # ถ้ามีการกำหนดโฟลเดอร์ raw_dir ให้เซฟภาพต้นฉบับลงไป
-        if raw_dir:
-            cv2.imwrite(os.path.join(raw_dir, f"frame_{count:04d}.png"), frame)
+        # ถ้ามีการกำหนดโฟลเดอร์ raw_dir ให้เซฟภาพต้นฉบับลงไป (สกัดเฟรมแบบเว้นระยะ)
+        if raw_dir and (count % save_interval == 0):
+            cv2.imwrite(os.path.join(raw_dir, f"thai_road_{saved_count:04d}.png"), frame)
+            saved_count += 1
             
         # run pipeline for each frame
         # --- ปรับปรุง: เรียก Pipeline แค่ครั้งเดียวต่อเฟรม ---
