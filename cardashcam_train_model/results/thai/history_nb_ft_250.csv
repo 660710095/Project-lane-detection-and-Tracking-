@@ -1,0 +1,2 @@
+epoch,train_loss,train_f1,val_f1,val_iou,val_median_err,val_lane_recall,val_night_f1,val_night_median_err,val_night_recall,val_curve_median_err,val_normal_median_err,thai_imgs_seen,train_slope_loss,train_slope_pairs
+1,0.36487122531980276,0.7040714827153087,0.5346618890243969,0.3648727109598112,2.14101813164104,0.9375,0.4718798640797983,5.649485379834147,1.0,2.5215951511794685,1.4833022680719594,122.5,0.0,0
