@@ -28,21 +28,50 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-sys.path.append('.')
-from dataset import LaneDatasetFromCSV
+_script_path = os.path.realpath(__file__)
+if "Deeplearning" in _script_path:
+    _project_root = os.path.abspath(os.path.join(os.path.dirname(_script_path), "../.."))
+else:
+    _project_root = os.path.abspath(os.path.dirname(_script_path))
+
+for _p in [
+    os.path.join(_project_root, "Deeplearning", "Unet"),
+    os.path.join(_project_root, "Deeplearning", "loss_and_metrics"),
+    os.path.join(_project_root, "data_preprocessing"),
+    _project_root
+]:
+    if _p not in sys.path:
+        sys.path.insert(0, _p)
+
+try:
+    from data_preprocessing.dataset import LaneDatasetFromCSV
+except ImportError:
+    from dataset import LaneDatasetFromCSV
 from finetune_thai import build_model          # เดาสถาปัตยกรรมจาก state_dict ไม่เชื่อชื่อไฟล์
 from slope_metrics import extract_lanes, slope_metrics_for_pair, mask_iou
 
-THAI_ROOT = "thai_road_lane"
-OUT_DIR = "results/thai"
+THAI_ROOT = os.path.join(_project_root, "dataset", "Thai_road_lane") if os.path.exists(os.path.join(_project_root, "dataset", "Thai_road_lane")) else "thai_road_lane"
+OUT_DIR = os.path.join(_project_root, "result", "result_Unet", "unet_Thai")
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# ใช้ checkpoint เกณฑ์ "มุมคลาด" ทั้งสองตัว ให้ตรงกับ REPORT_THAI.md หัวข้อ 3
-# ถ้าสลับไปใช้ best_f1 กลางคืนจะกลายเป็น 26.47° แทน 4.28° รูปจะเล่าคนละเรื่องกับตารางในไฟล์เดียวกัน
+# ใช้ checkpoint ที่มีอยู่จริง ถ้าไม่มี _best_slope ให้สลับเป็น _best_f1 อัตโนมัติ
+def resolve_model_path(path):
+    candidates = [
+        path,
+        os.path.join(_project_root, path),
+        path.replace("_best_slope.pth", "_best_f1.pth"),
+        os.path.join(_project_root, path.replace("_best_slope.pth", "_best_f1.pth")),
+    ]
+    for c in candidates:
+        if os.path.exists(c):
+            return c
+    return path
+
 MODELS = [
-    ("zero-shot (CULane)",     "models/best_model_resnet50_ssl_bs16_ep30.pth"),
-    ("fine-tune (best_slope)", "models/thai_finetune_ssl_best_slope.pth"),
-    ("Thai-only (best_slope)", "models/thai_scratch_ssl_best_slope.pth"),
+    ("zero-shot (CULane)",     resolve_model_path("models/best_model_resnet50_ssl_bs16_ep30.pth")),
+    ("fine-tune (Thai)",       resolve_model_path("models/thai_finetune_ssl_best_f1.pth")),
+    ("Thai-only (Scratch)",    resolve_model_path("models/thai_scratch_ssl_best_f1.pth")),
+    ("Joint (CU+Thai) [Best]", resolve_model_path("models/joint_culane_thai_deeplabv3plus_resnet50_imagenet_best_f1.pth")),
 ]
 ENCODER = "resnet50"
 THRESHOLD = 0.5
@@ -116,8 +145,14 @@ def predict_all(picks, ds):
         out = []
         for idx, _ in picks:
             image_t, _ = ds[idx]
-            # ป้อน input ดิบ [0,1] ไม่ normalize — ตรงกับ finetune_thai.evaluate()
-            logit = model(image_t.unsqueeze(0).to(DEVICE))
+            # ถ้าเป็นโมเดล joint หรือ imagenet ให้ normalize ตาม mean/std
+            if "joint" in path or "imagenet" in path:
+                mean = torch.tensor([0.485, 0.456, 0.406]).view(3, 1, 1)
+                std = torch.tensor([0.229, 0.224, 0.225]).view(3, 1, 1)
+                inp = (image_t - mean) / std
+            else:
+                inp = image_t
+            logit = model(inp.unsqueeze(0).to(DEVICE))
             prob = torch.sigmoid(logit.float())[0, 0].cpu().numpy()
             out.append(prob > THRESHOLD)
         preds[name] = out
@@ -176,6 +211,17 @@ def render(picks, ds, preds, out_path, title_extra=""):
     plt.savefig(out_path, dpi=110)
     plt.close(fig)
     print(f"\n📁 บันทึกภาพไว้ที่: {out_path}")
+    
+    # บันทึกสำเนาไว้ที่ root และ artifacts folder
+    import shutil
+    for extra in ["/home/jovyan/cardashcam_train_model/examples_thai_6images.png", 
+                  "/home/jovyan/.gemini/antigravity-cli/brain/12486069-e360-4d26-9af5-c6ad205ef419/examples_thai_6images.png"]:
+        try:
+            os.makedirs(os.path.dirname(extra), exist_ok=True)
+            shutil.copyfile(out_path, extra)
+            print(f"📁 บันทึกสำเนาไว้ที่: {extra}")
+        except Exception:
+            pass
     return stats
 
 

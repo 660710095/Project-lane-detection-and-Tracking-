@@ -1,0 +1,7 @@
+Model,IoU (%),Precision (%),Recall (%),F1-Score (%)
+"Unet (resnet34, imagenet)",50.46,65.29,66.35,65.28
+"Unet (resnet50, imagenet)",48.61,62.29,66.65,63.88
+"Unet (resnet50, ssl)",51.78,65.2,68.96,66.57
+"DeepLabV3Plus (resnet34, imagenet)",49.84,62.16,68.95,65.12
+"DeepLabV3Plus (resnet50, imagenet)",48.97,59.41,71.05,64.24
+"DeepLabV3Plus (resnet50, ssl)",48.9,61.38,67.6,64.08

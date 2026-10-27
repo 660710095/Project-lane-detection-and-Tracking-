@@ -1,67 +1,82 @@
-# Pipeline การตรวจจับและติดตามเส้นช่องทางจราจร (Lane Detection & Tracking)
+# 5.1 โครงสร้างของระบบ (System Architecture & Pipeline)
 
-> เอกสารสรุปขั้นตอนการทำงานและตำแหน่งไฟล์ในโปรเจกต์ อ้างอิงตามลำดับแผนผัง 8 ขั้นตอน
+> โครงสร้างโดยรวมของระบบตรวจจับเลนถนน แสดงดังรูปที่ 5.1 อ้างอิงตามรายงานโครงการ (หน้า 28)
 
 ```mermaid
 flowchart TD
-    S1["[1] CULane Dataset\n(~87,000 ภาพ)"] --> S2["[2] Group Stratified Split\n(แบ่งตาม Clip ID)"]
-    S2 --> S3["[3] Preprocessing & Augmentation\n(Resize 448x800, Flip, Brightness)\n[หน้าที่: ปั๊ม IP]"]
-    S3 --> S4["[4] เทรน Base Model\n(U-Net / DeepLabV3+)\n[หน้าที่: แม็ก DL]"]
-    S4 --> S5["[5] Fine-tune ภาพไทย\n(1,037 ภาพ + Rehearsal 50%)\n[หน้าที่: แม็ก DL]"]
-    S5 --> S6["[6] ประเมินผล Before vs After\n(IoU, F1, Recall, Angle Error)\n[หน้าที่: แม็ก DL]"]
-    S6 --> S7["[7] Post-processing\n(Sliding Window + Curve Fitting + Tracking)\n[หน้าที่: ปั๊ม IP]"]
-    S7 --> S8["[8] OUTPUT: วิดีโอแจ้งเตือนขับขี่จริง\n[ผลลัพธ์สุดท้ายระบบ]"]
+    S1["1. นำเข้า Dataset จาก CULane"] --> S2["2. แบ่งข้อมูลแบบ Group Stratified ตาม Clip ID\nเพื่อป้องกันข้อมูลรั่วไหล ระหว่างชุดฝึกและชุดทดสอบ"]
+    S2 --> S3["3. การเตรียมข้อมูลและ Data Augmentation\nดำเนินการเตรียมข้อมูลโดยใช้องค์ความรู้ด้านการประมวลผลภาพ"]
+    S3 --> S4["4. การฝึกโมเดล Segmentation"]
+    S4 --> S5["5. การ Fine-tune"]
+    S5 --> S6["6. การประเมินผลเปรียบเทียบก่อนและหลัง Fine-tune"]
+    S6 --> S7["7. การประมวลผลภายหลังด้วย Image Processing\nเพื่อแสดงผลลัพธ์"]
 ```
 
 ---
 
-## สรุปการเชื่อมโยงไฟล์ตามขั้นตอน (Pipeline File Mapping)
+## สรุปการเชื่อมโยงขั้นตอนกับไฟล์ในระบบ (Pipeline File Mapping)
 
-| ขั้นตอนในแผนผัง | ผู้รับผิดชอบ | ไฟล์โค้ด / สคริปต์หลัก | ไฟล์ผลลัพธ์ / ข้อมูลที่เกี่ยวข้อง |
+| ขั้นตอนตามรูปที่ 5.1 | ผู้รับผิดชอบ | ไฟล์โค้ด / สคริปต์หลัก | ไฟล์ผลลัพธ์ / ข้อมูลที่เกี่ยวข้อง |
 |---|:---:|---|---|
-| **1. CULane Dataset** | - | - | `/home/jovyan/shared/donut/CarDashCam/CULane` |
-| **2. Group Stratified Split** | แม็ก (DL) | [scripts/make_thai_subsets.py](file:///home/jovyan/cardashcam_train_model/scripts/make_thai_subsets.py) | [thai_road_lane/train_list.csv](file:///home/jovyan/cardashcam_train_model/thai_road_lane/train_list.csv)<br>[thai_road_lane/val_list.csv](file:///home/jovyan/cardashcam_train_model/thai_road_lane/val_list.csv)<br>[thai_road_lane/test_list.csv](file:///home/jovyan/cardashcam_train_model/thai_road_lane/test_list.csv)<br>[data_subsets/](file:///home/jovyan/cardashcam_train_model/data_subsets/) |
-| **3. Preprocessing & Augmentation** | ปั๊ม (IP) | [dataset.py](file:///home/jovyan/cardashcam_train_model/dataset.py) (`_augment_tensor`) | [scripts/check_annotation_style.py](file:///home/jovyan/cardashcam_train_model/scripts/check_annotation_style.py) |
-| **4. เทรน Base Model** | แม็ก (DL) | [notebooks/train_unet_resnet34_imagenet.ipynb](file:///home/jovyan/cardashcam_train_model/notebooks/train_unet_resnet34_imagenet.ipynb) | [models/best_model_resnet50_ssl_bs16_ep30.pth](file:///home/jovyan/cardashcam_train_model/models/)<br>[results/training/](file:///home/jovyan/cardashcam_train_model/results/training/)<br>[results/evaluate/](file:///home/jovyan/cardashcam_train_model/results/evaluate/) |
-| **5. Fine-tune ภาพไทย** | แม็ก (DL) | [finetune_thai.py](file:///home/jovyan/cardashcam_train_model/finetune_thai.py)<br>[notebooks/finetune_thai.ipynb](file:///home/jovyan/cardashcam_train_model/notebooks/finetune_thai.ipynb)<br>[slope_loss.py](file:///home/jovyan/cardashcam_train_model/slope_loss.py)<br>[scripts/run_datasize.py](file:///home/jovyan/cardashcam_train_model/scripts/run_datasize.py) | [models/thai_ft_rh_s1_best_f1.pth](file:///home/jovyan/cardashcam_train_model/models/) (โมเดลดีสุด)<br>[results/thai/history_ft_rh_s1.csv](file:///home/jovyan/cardashcam_train_model/results/thai/) |
-| **6. ประเมินผล Before vs After** | แม็ก (DL) | [eval_masks.py](file:///home/jovyan/cardashcam_train_model/eval_masks.py)<br>[slope_metrics.py](file:///home/jovyan/cardashcam_train_model/slope_metrics.py)<br>[plot_thai_examples.py](file:///home/jovyan/cardashcam_train_model/plot_thai_examples.py)<br>[scripts/eval_retention.py](file:///home/jovyan/cardashcam_train_model/scripts/eval_retention.py)<br>[scripts/analyze_night.py](file:///home/jovyan/cardashcam_train_model/scripts/analyze_night.py)<br>[scripts/make_datasize_report.py](file:///home/jovyan/cardashcam_train_model/scripts/make_datasize_report.py)<br>[notebooks/evaluate_metrics_comparison.ipynb](file:///home/jovyan/cardashcam_train_model/notebooks/evaluate_metrics_comparison.ipynb) | [results/thai/REPORT_THAI.md](file:///home/jovyan/cardashcam_train_model/results/thai/REPORT_THAI.md)<br>[results/thai/REPORT_NIGHT.md](file:///home/jovyan/cardashcam_train_model/results/thai/REPORT_NIGHT.md)<br>[results/thai/REPORT_DATASIZE.md](file:///home/jovyan/cardashcam_train_model/results/thai/REPORT_DATASIZE.md)<br>[results/thai/comparison_three_methods.png](file:///home/jovyan/cardashcam_train_model/results/thai/comparison_three_methods.png) |
-| **7. Post-processing** | ปั๊ม (IP) | [eval_masks.py](file:///home/jovyan/cardashcam_train_model/eval_masks.py) (ตัววัดผล Mask ร่วมกัน) | [HANDOFF_IP.md](file:///home/jovyan/cardashcam_train_model/HANDOFF_IP.md) |
-| **8. OUTPUT: วิดีโอแจ้งเตือน** | ปั๊ม + แม็ก | - | [results/frames/](file:///home/jovyan/cardashcam_train_model/results/frames/) |
+| **1. นำเข้า Dataset จาก CULane** | - | - | `/home/jovyan/shared/donut/CarDashCam/CULane` (~87,000 ภาพ) |
+| **2. แบ่งข้อมูลแบบ Group Stratified ตาม Clip ID** | แม็ก (DL) | [data_preprocessing/make_subsets.py](file:///home/jovyan/cardashcam_train_model/data_preprocessing/make_subsets.py) | [dataset/Thai_road_lane/train_list.csv](file:///home/jovyan/cardashcam_train_model/dataset/Thai_road_lane/train_list.csv)<br>[dataset/Thai_road_lane/val_list.csv](file:///home/jovyan/cardashcam_train_model/dataset/Thai_road_lane/val_list.csv)<br>[dataset/Thai_road_lane/test_list.csv](file:///home/jovyan/cardashcam_train_model/dataset/Thai_road_lane/test_list.csv) |
+| **3. การเตรียมข้อมูลและ Data Augmentation** | ปั๊ม (IP) + แม็ก (DL) | [data_preprocessing/dataset.py](file:///home/jovyan/cardashcam_train_model/data_preprocessing/dataset.py)<br>[data_preprocessing/check_annotation_style.py](file:///home/jovyan/cardashcam_train_model/data_preprocessing/check_annotation_style.py)<br>[data_preprocessing/check_convention_effect.py](file:///home/jovyan/cardashcam_train_model/data_preprocessing/check_convention_effect.py) | [data_preprocessing/augmentation_demo.png](file:///home/jovyan/cardashcam_train_model/data_preprocessing/augmentation_demo.png)<br>[dataset/Thai_road_lane/](file:///home/jovyan/cardashcam_train_model/dataset/Thai_road_lane/) |
+| **4. การฝึกโมเดล Segmentation** | แม็ก (DL) | [Deeplearning/Unet/1_train_CULane.ipynb](file:///home/jovyan/cardashcam_train_model/Deeplearning/Unet/1_train_CULane.ipynb)<br>[Deeplearning/Deeplabv3plus/1_train_CULane_DLV3.ipynb](file:///home/jovyan/cardashcam_train_model/Deeplearning/Deeplabv3plus/1_train_CULane_DLV3.ipynb) | [result/result_Unet/unet_CULane/](file:///home/jovyan/cardashcam_train_model/result/result_Unet/unet_CULane/)<br>[result/result_DLV3PLUS/DLV3PLUS_CULane/](file:///home/jovyan/cardashcam_train_model/result/result_DLV3PLUS/DLV3PLUS_CULane/) |
+| **5. การ Fine-tune** | แม็ก (DL) | [Deeplearning/Unet/2_train_Thai.ipynb](file:///home/jovyan/cardashcam_train_model/Deeplearning/Unet/2_train_Thai.ipynb)<br>[Deeplearning/Unet/3_train_CULane_Thai.ipynb](file:///home/jovyan/cardashcam_train_model/Deeplearning/Unet/3_train_CULane_Thai.ipynb)<br>[Deeplearning/Unet/finetune_thai.py](file:///home/jovyan/cardashcam_train_model/Deeplearning/Unet/finetune_thai.py)<br>[Deeplearning/Deeplabv3plus/2_train_Thai_DLV3.ipynb](file:///home/jovyan/cardashcam_train_model/Deeplearning/Deeplabv3plus/2_train_Thai_DLV3.ipynb)<br>[Deeplearning/Deeplabv3plus/3_train_CULane_Thai_DLV3.ipynb](file:///home/jovyan/cardashcam_train_model/Deeplearning/Deeplabv3plus/3_train_CULane_Thai_DLV3.ipynb) | [result/result_Unet/unet_Thai/model/resnet50_ssl/thai_ft_rh_s1_best_f1.pth](file:///home/jovyan/cardashcam_train_model/result/result_Unet/unet_Thai/model/resnet50_ssl/thai_ft_rh_s1_best_f1.pth) (โมเดลดีสุด)<br>[result/result_Unet/unet_Thai/](file:///home/jovyan/cardashcam_train_model/result/result_Unet/unet_Thai/)<br>[result/result_DLV3PLUS/DLV3PLUS_Thai/](file:///home/jovyan/cardashcam_train_model/result/result_DLV3PLUS/DLV3PLUS_Thai/) |
+| **6. การประเมินผลเปรียบเทียบก่อนและหลัง Fine-tune** | แม็ก (DL) | [Deeplearning/loss_and_metrics/eval_masks.py](file:///home/jovyan/cardashcam_train_model/Deeplearning/loss_and_metrics/eval_masks.py)<br>[Deeplearning/loss_and_metrics/slope_metrics.py](file:///home/jovyan/cardashcam_train_model/Deeplearning/loss_and_metrics/slope_metrics.py)<br>[Deeplearning/loss_and_metrics/plot_thai_examples.py](file:///home/jovyan/cardashcam_train_model/Deeplearning/loss_and_metrics/plot_thai_examples.py)<br>[Deeplearning/loss_and_metrics/slope_metrics_lab.ipynb](file:///home/jovyan/cardashcam_train_model/Deeplearning/loss_and_metrics/slope_metrics_lab.ipynb)<br>[Deeplearning/loss_and_metrics/evaluate_metrics_comparison.ipynb](file:///home/jovyan/cardashcam_train_model/Deeplearning/loss_and_metrics/evaluate_metrics_comparison.ipynb) | [result/all_history_plots/](file:///home/jovyan/cardashcam_train_model/result/all_history_plots/)<br>[result/result_Unet/unet_Thai/test_metrics_comparison.csv](file:///home/jovyan/cardashcam_train_model/result/result_Unet/unet_Thai/test_metrics_comparison.csv)<br>[result/result_Unet/unet_Thai/overall_comparison_all_models.png](file:///home/jovyan/cardashcam_train_model/result/result_Unet/unet_Thai/overall_comparison_all_models.png) |
+| **7. การประมวลผลภายหลังด้วย Image Processing เพื่อแสดงผลลัพธ์** | ปั๊ม (IP) | [Deeplearning/predict_mask.ipynb](file:///home/jovyan/cardashcam_train_model/Deeplearning/predict_mask.ipynb) (ตัวส่งมอบ Mask จาก DL)<br>[Deeplearning/loss_and_metrics/eval_masks.py](file:///home/jovyan/cardashcam_train_model/Deeplearning/loss_and_metrics/eval_masks.py) | [HANDOFF_IP.md](file:///home/jovyan/cardashcam_train_model/HANDOFF_IP.md)<br>[results/ip/](file:///home/jovyan/cardashcam_train_model/results/ip/)<br>[results/ip_for_create_line/](file:///home/jovyan/cardashcam_train_model/results/ip_for_create_line/)<br>[results/ip_slope/](file:///home/jovyan/cardashcam_train_model/results/ip_slope/)<br>[Tollway_road_curve03.mp4](file:///home/jovyan/cardashcam_train_model/Tollway_road_curve03.mp4) |
 
 ---
 
-## รายละเอียดแต่ละขั้นตอน
+## รายละเอียดเชิงลึกในแต่ละขั้นตอน
 
-### ขั้นที่ 1: CULane Dataset
-* **ข้อมูล**: ชุดข้อมูลขนาดใหญ่จากจีน ~87,000 ภาพ (Train 61,183 ภาพ)
-* **การใช้งาน**: ใช้เป็นความรู้ตั้งต้น (Pretrain) เพื่อให้โมเดลเข้าใจโครงสร้างเส้นเลน
+### 1. นำเข้า Dataset จาก CULane
+* **ข้อมูล:** ชุดข้อมูล CULane ขนาดใหญ่จากจีน รวม ~87,000 ภาพ (Train 61,183 ภาพ)
+* **พาธ:** `/home/jovyan/shared/donut/CarDashCam/CULane`
+* **วัตถุประสงค์:** ใช้เป็นความรู้ตั้งต้น (Pretrained Feature Extractor) เพื่อให้โมเดลเข้าใจโครงสร้างพื้นฐานของถนนและเส้นเลนจราจรในสภาพแสงหลากหลาย
 
-### ขั้นที่ 2: Group Stratified Split ตาม Clip ID
-* **วัตถุประสงค์**: แยกข้อมูล Train (749), Val (97), Test (191) โดยตัดเป็นรายคลิปวิดีโอ ป้องกันปัญหา Data Leakage (ภาพจากคลิปเดียวกันหลุดไปอยู่ทั้งข้อสอบและชุดฝึก)
-* **สคริปต์**: `scripts/make_thai_subsets.py`
+### 2. แบ่งข้อมูลแบบ Group Stratified ตาม Clip ID เพื่อป้องกันข้อมูลรั่วไหล ระหว่างชุดฝึกและชุดทดสอบ
+* **วัตถุประสงค์:** แบ่งข้อมูลภาพถนนไทย (Thai Road Dataset) 1,037 ภาพ โดยตัดแบ่งตาม Clip ID ของวิดีโอ เพื่อป้องกันปัญหา Data Leakage (ป้องกันไม่ให้เฟรมจากคลิปเดียวกันหลุดไปอยู่ทั้งในชุด Train และชุด Test)
+* **สัดส่วน:** 
+  * ชุดฝึก (Train): 726 ภาพ
+  * ชุดตรวจสอบ (Val): 208 ภาพ
+  * ชุดทดสอบ (Test): 104 ภาพ (ครอบคลุมทั้งสภาวะกลางวัน กลางคืน ทางตรง และทางโค้ง)
+* **สคริปต์หลัก:** [`data_preprocessing/make_subsets.py`](file:///home/jovyan/cardashcam_train_model/data_preprocessing/make_subsets.py)
 
-### ขั้นที่ 3: Preprocessing & Data Augmentation (หน้าที่ปั๊ม : IP)
-* **การประมวลผลภาพ**: ย่อขนาดภาพเป็น $448 \times 800$ พิกเซล (หาร 32 ลงตัวตามสถาปัตยกรรมโครงข่าย)
-* **Augmentation**: สุ่มพลิกซ้าย-ขวา 50% และปรับความสว่าง 30% เฉพาะชุด Train (ใน `dataset.py`)
+### 3. การเตรียมข้อมูลและ Data Augmentation ดำเนินการเตรียมข้อมูลโดยใช้องค์ความรู้ด้านการประมวลผลภาพ
+* **การย่อขนาดภาพ (Resize):** ปรับขนาดภาพเป็น $448 \times 800$ พิกเซล (หารด้วย 32 ลงตัวตามสถาปัตยกรรม Feature Pyramid / Encoder-Decoder)
+* **Data Augmentation:**
+  * Horizontal Flip (สุ่มกลับภาพซ้าย-ขวา 50%)
+  * Brightness & Contrast Adjustment (สุ่มปรับความสว่าง ±30% จำลองสภาวะแสงแดดและเงามืด)
+* **คลาสหลัก:** [`LaneDataset`](file:///home/jovyan/cardashcam_train_model/data_preprocessing/dataset.py) ใน `data_preprocessing/dataset.py`
 
-### ขั้นที่ 4: เทรน Base Model (หน้าที่แม็ก : DL)
-* **สถาปัตยกรรม**: U-Net (ResNet34, ResNet50 SSL) และ DeepLabV3+
-* **ผลลัพธ์**: ได้ Base Weights บนถนนจีน เช่น `models/best_model_resnet50_ssl_bs16_ep30.pth` (F1 0.692)
+### 4. การฝึกโมเดล Segmentation
+* **สถาปัตยกรรม:** 
+  1. **U-Net:** ResNet-34 (ImageNet), ResNet-50 (ImageNet), ResNet-50 (MoCo v2 SSL)
+  2. **DeepLabV3+:** ResNet-34 (ImageNet), ResNet-50 (ImageNet), ResNet-50 (MoCo v2 SSL)
+* **กระบวนการเทรน:** ใช้ Loss แบบผสม (BCE + Dice Loss) และ Adam Optimizer เทรนบน CULane เพื่อสร้าง Base Checkpoints สำหรับแต่ละสถาปัตยกรรม
+* **ผลลัพธ์:** เก็บไว้ใน [`result/result_Unet/unet_CULane/`](file:///home/jovyan/cardashcam_train_model/result/result_Unet/unet_CULane/) และ [`result/result_DLV3PLUS/DLV3PLUS_CULane/`](file:///home/jovyan/cardashcam_train_model/result/result_DLV3PLUS/DLV3PLUS_CULane/)
 
-### ขั้นที่ 5: Fine-tune ด้วย Thai Road Dataset 1,037 ภาพ (DL)
-* **การฝึกต่อ**: ใช้ภาพไทย 749 ภาพฝึกต่อจาก Base Model ด้วย Learning Rate ต่ำ ($1 \times 10^{-5}$)
-* **เทคนิค Rehearsal 50%**: ผสมข้อมูล CULane 50% ในแต่ละ Batch เพื่อป้องกันโมเดลลืมการขับขี่กลางคืน (Catastrophic Forgetting)
-* **โมเดลที่แนะนำ**: `models/thai_ft_rh_s1_best_f1.pth`
+### 5. การ Fine-tune
+* **เทคนิค Rehearsal 50%:** ในแต่ละ Mini-batch ทำการผสมข้อมูลภาพถนนไทย (Thai Road) 50% ร่วมกับข้อมูล CULane 50% เพื่อป้องกันปัญหาโมเดลลืมสภาพการขับขี่กลางคืน (Catastrophic Forgetting)
+* **กลยุทธ์การเทรน:** ปรับ Learning Rate ให้เหมาะสม ($1 \times 10^{-5}$) พร้อมทดสอบร่วมกับ Slope-aware Loss
+* **โมเดลที่ให้ผลลัพธ์ดีที่สุด (SOTA):**
+  * `thai_ft_rh_s1_best_f1.pth` (U-Net + ResNet-50 SSL)
+  * เก็บไว้ที่ [`result/result_Unet/unet_Thai/model/resnet50_ssl/thai_ft_rh_s1_best_f1.pth`](file:///home/jovyan/cardashcam_train_model/result/result_Unet/unet_Thai/model/resnet50_ssl/thai_ft_rh_s1_best_f1.pth)
 
-### ขั้นที่ 6: ประเมินผล Before vs After Fine-tune (IoU / F1)
-* **ตัวชี้วัด**: วัดทั้งความทับซ้อน (IoU, F1, Recall) และความถูกต้องของทิศทาง (มุมความชัน Slope Error)
-* **ผลลัพธ์สรุป (191 ภาพ Test)**:
-  * **Before (Zero-shot)**: IoU 0.354, F1 0.523, มุมคลาด 1.90°
-  * **After (Fine-tune)**: **IoU 0.470**, **F1 0.640**, มุมคลาด 2.01°, Recall 0.856
+### 6. การประเมินผลเปรียบเทียบก่อนและหลัง Fine-tune
+* **ตัวชี้วัด:**
+  * ความทับซ้อนและประสิทธิภาพเชิงพิกเซล: IoU, Precision, Recall, F1-Score
+  * ความถูกต้องทางเรขาคณิตของเส้นเลน: Angle Error (องศาความชันเส้นเลน)
+* **ผลการเปรียบเทียบบนชุดทดสอบถนนไทย (Test Set):**
+  * **ก่อน Fine-tune (Zero-shot CULane):** IoU 0.354, F1 0.523, มุมคลาดเคลื่อน 1.90°
+  * **หลัง Fine-tune (Thai + Rehearsal 50%):** **IoU 0.470**, **F1 0.640**, Recall **0.856**, มุมคลาดเคลื่อน 2.01°
+* **กราฟและตารางสรุปผล:** ดูได้ที่ [`result/all_history_plots/`](file:///home/jovyan/cardashcam_train_model/result/all_history_plots/) และ [`result/result_Unet/unet_Thai/test_metrics_comparison.csv`](file:///home/jovyan/cardashcam_train_model/result/result_Unet/unet_Thai/test_metrics_comparison.csv)
 
-### ขั้นที่ 7: Post-processing (หน้าที่ปั๊ม : IP)
-* **การทำงาน**: ฝั่ง IP นำ Binary Mask (0 หรือ 255) ที่ได้จาก DL ไปทำ Sliding Window, ลากเส้น Polynomial Curve Fitting และ Tracking เส้นต่อเนื่องระหว่างเฟรม
-* **การวัดผลร่วม**: วัดผล Mask ของ IP เทียบกับ DL ด้วยสคริปต์ `eval_masks.py` (กติกาตาม `HANDOFF_IP.md`)
-
-### ขั้นที่ 8: OUTPUT: วิดีโอแจ้งเตือนขับขี่จริง
-* **ผลลัพธ์ระบบ**: แสดงภาพวิดีโอพร้อมระบุเส้นเลนแบบ Overlay และส่งสัญญาณเตือนเมื่อรถเริ่มเบี่ยงออกนอกเลน (Lane Departure Warning)
+### 7. การประมวลผลภายหลังด้วย Image Processing เพื่อแสดงผลลัพธ์
+* **การส่งมอบข้อมูล (Handoff Interface):** ฝั่ง Deep Learning ส่งมอบ Binary Mask ขนาดเท่าเฟรมต้นฉบับ (ค่า 0 หรือ 255) ผ่านฟังก์ชัน `predict_mask()` ใน [`Deeplearning/predict_mask.ipynb`](file:///home/jovyan/cardashcam_train_model/Deeplearning/predict_mask.ipynb)
+* **การประมวลผลของฝั่ง Image Processing:**
+  * คัดแยกเส้นเลนด้วย Sliding Window Search
+  * ปรับเส้นโค้งด้วย 2nd-order Polynomial Curve Fitting
+  * ติดตามเส้นเลนข้ามเฟรม (Lane Tracking) และคำนวณการเบี่ยงเบนเพื่อแจ้งเตือนการออกนอกเลน (Lane Departure Warning)
+* **โค้ดและผลลัพธ์ของฝั่ง IP:** เก็บไว้ใน [`results/ip/`](file:///home/jovyan/cardashcam_train_model/results/ip/), [`results/ip_for_create_line/`](file:///home/jovyan/cardashcam_train_model/results/ip_for_create_line/) และ [`results/ip_slope/`](file:///home/jovyan/cardashcam_train_model/results/ip_slope/)
