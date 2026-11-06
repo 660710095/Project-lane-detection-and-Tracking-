@@ -15,7 +15,7 @@ flowchart TD
     S2 --> S3["[3] Preprocessing & Augmentation\n(Adaptive Threshold, CLAHE, HLS/HSV, Brightness Detection)"]
     S3 --> S4["[4] การฝึก Base Model บน CULane\n(U-Net & DeepLabV3+ ResNet-34/50 ImageNet & SSL)"]
     S4 --> S5["[5] การปรับจูนและบีบ 2 เลนไทย (Ego-Lane)\n(Fine-tune + Rehearsal 50% & Joint Training)"]
-    S5 --> S6["[6] การประเมินผลเชิงพิกเซลและเรขาคณิต\n(IoU, Precision, Recall, F1, Hungarian Slope Error)"]
+    S5 --> S6["[6] การประเมินผลเชิงพิกเซล (IoU-based)\n(IoU, Precision, Recall, F1)"]
     S6 --> S7["[7] Post-Processing & Lane Tracking\n(Bird's-Eye View, Sliding Window, 3rd-order Polyfit, Smoothing)"]
     S7 --> S8["[8] การแจ้งเตือนขับขี่จริง (LKA / LDWS)\n(คำนวณ Vehicle Lateral Offset, เตือน Drifting Left/Right/Safe)"]
 ```
@@ -27,7 +27,7 @@ flowchart TD
 | ส่วนงาน | ผู้รับผิดชอบหลัก | ขั้นตอนใน Pipeline | ขอบเขตความรับผิดชอบเชิงเทคนิค |
 |---|:---:|:---:|---|
 | **Image Processing (IP)** | **ปั๊ม** | ขั้นตอนที่ 3, 7, 8 | • ปรับแต่ง Color & Gradient Threshold (HLS/HSV/Sobel) พร้อมระบบตรวจจับกลางวัน/กลางคืน (Day/Night Detection)<br>• การทำ Perspective Transform (Bird's-Eye View)<br>• Sliding Window Lane Tracking และ 3rd-order Polynomial Curve Fitting ($x = Ay^3 + By^2 + Cy + D$)<br>• ระบบ LaneProcessor รักษาความเสถียรของเส้นเลนข้ามเฟรม (Temporal Smoothing 15 เฟรม)<br>• ระบบคำนวณ Lateral Offset และแจ้งเตือน Lane Keep Assist (LKA) |
-| **Deep Learning (DL)** | **แม็ก** | ขั้นตอนที่ 2, 4, 5, 6 | • Group Stratified Split ป้องกัน Data Leakage บนชุดข้อมูลไทย 1,037 ภาพ<br>• เทรน Base Model บน CULane 61,182 ภาพ (U-Net & DeepLabV3+)<br>• วิจัยแก้ปัญหา Catastrophic Forgetting ด้วย Experience Rehearsal 50%<br>• ออกแบบ Multi-Domain Joint Training ปลดล็อกโมเดลแชมป์ DeepLabV3+ ResNet-50<br>• พัฒนาสคริปต์ `train_thai_2lanes.py` บีบให้โมเดลทำนายเฉพาะ 2 เลนหน้ารถ (Ego-lane)<br>• สร้าง Handoff Interface (`predict_mask.py`, `eval_masks.py`) เชื่อมต่อระหว่าง DL และ IP |
+| **Deep Learning (DL)** | **แม็ก** | ขั้นตอนที่ 2, 4, 5, 6 | • ตี Label (Ground Truth) เองครบทั้ง 1,037 ภาพ + ตรวจความสอดคล้องของ Label ด้วย Inter-Annotator Agreement (เพื่อน 3 คนตี 30% แล้วเทียบพิกัดจุด)<br>• Group Stratified Split ป้องกัน Data Leakage บนชุดข้อมูลไทย 1,037 ภาพ<br>• เทรน Base Model บน CULane 61,182 ภาพ (U-Net & DeepLabV3+)<br>• วิจัยแก้ปัญหา Catastrophic Forgetting ด้วย Experience Rehearsal 50%<br>• ออกแบบ Multi-Domain Joint Training ปลดล็อกโมเดลแชมป์ DeepLabV3+ ResNet-50<br>• พัฒนาสคริปต์ `train_thai_2lanes.py` บีบให้โมเดลทำนายเฉพาะ 2 เลนหน้ารถ (Ego-lane)<br>• สร้าง Handoff Interface (`predict_mask.py`, `eval_masks.py`) เชื่อมต่อระหว่าง DL และ IP |
 
 ---
 
@@ -37,12 +37,12 @@ flowchart TD
 
 ### 1. การเปรียบเทียบภาพรวม 4 ยุทธศาสตร์การทดลอง (The 4 Core DL Strategies)
 
-| อันดับ | ยุทธศาสตร์การทดลอง | ข้อมูลตั้งต้น $\to$ ข้อมูลที่ใช้เทรน | All IoU (%) | Precision (%) | Recall (%) | F1-Score (%) | มุมคลาดกลางคืน | สรุปผลการประเมินเชิงวิศวกรรม |
-| :---: | :--- | :--- | :---: | :---: | :---: | :---: | :---: | :--- |
-| 4 | **1. Zero-Shot** | CULane (จีน 61k) $\to$ ไม่เทรนเพิ่ม | 35.40% | 45.10% | 62.30% | 52.30% | 1.90° | **Convention Mismatch:** โมเดลติดนิสัยวาด 4 เลนแบบจีน โดนหัก False Positive รุนแรงบนเลนข้างเคียง |
-| 3 | **2. Train Thai จากศูนย์** | ImageNet $\to$ ไทยล้วน (749 ภาพ) | 48.97% | 63.80% | 67.20% | 65.50% | 3.14° | **Data Bottleneck:** ข้อมูล 749 ภาพน้อยเกินไป โมเดล Overfit ตั้งแต่ Epoch 10 ความแม่นยำติดเพดาน |
-| 2 | **3. Sequential Fine-Tune** | CULane $\to$ ไทยล้วน (749 ภาพ) | 50.63% | 66.34% | 68.14% | 67.23% | 26.56° *(พัง)*<br>$\to$ 2.01° *(Rehearsal)* | **Catastrophic Forgetting:** บีบเหลือ 2 เลนได้ แต่ลืมสภาพกลางคืน ต้องใช้ Rehearsal 50% ดึงความจำกลับมา |
-| 🏆 **1** | **4. Joint Training (ตัวจริง)** | CULane + Thai ผสมพร้อมกันในลูปเดียว | **55.12%** | **71.04%** | **68.74%** | **69.87%** | **1.77° (แม่นยำสุด)** | **ชนะเลิศทุกด้าน:** โมดูล ASPP ดึงฟีเจอร์หลายระดับ ไม่ลืมกลางคืน และได้เลนไทย 2 เส้นคมชัด ไม่มีเส้นหลอกกวน IP |
+| อันดับ | ยุทธศาสตร์การทดลอง | ข้อมูลตั้งต้น $\to$ ข้อมูลที่ใช้เทรน | All IoU (%) | Precision (%) | Recall (%) | F1-Score (%) | สรุปผลการประเมินเชิงวิศวกรรม |
+| :---: | :--- | :--- | :---: | :---: | :---: | :---: | :--- |
+| 4 | **1. Zero-Shot** | CULane (จีน 61k) $\to$ ไม่เทรนเพิ่ม | 35.40% | 45.10% | 62.30% | 52.30% | **Convention Mismatch:** โมเดลติดนิสัยวาด 4 เลนแบบจีน โดนหัก False Positive รุนแรงบนเลนข้างเคียง |
+| 3 | **2. Train Thai จากศูนย์** | ImageNet $\to$ ไทยล้วน (749 ภาพ) | 48.97% | 63.80% | 67.20% | 65.50% | **Data Bottleneck:** ข้อมูล 749 ภาพน้อยเกินไป โมเดล Overfit ตั้งแต่ Epoch 10 ความแม่นยำติดเพดาน |
+| 2 | **3. Sequential Fine-Tune** | CULane $\to$ ไทยล้วน (749 ภาพ) | 50.63% | 66.34% | 68.14% | 67.23% | **Catastrophic Forgetting:** บีบเหลือ 2 เลนได้ แต่ลืมความแม่นยำกลางคืน (Night IoU ตกจาก *0.336 → 0.173*) ต้องใช้ Rehearsal 50% ดึงกลับมา |
+| 🏆 **1** | **4. Joint Training (ตัวจริง)** | CULane + Thai ผสมพร้อมกันในลูปเดียว | **55.12%** | **71.04%** | **68.74%** | **69.87%** | **ชนะเลิศทุกด้าน:** โมดูล ASPP ดึงฟีเจอร์หลายระดับ ไม่ลืมกลางคืน และได้เลนไทย 2 เส้นคมชัด ไม่มีเส้นหลอกกวน IP |
 
 ---
 
@@ -66,6 +66,24 @@ flowchart TD
 * **กลไกการบีบด้วย Loss:** ในการเทรนด้วย `train_thai_2lanes.py` เมื่อโมเดลพยายามวาดเลนข้างเคียงออกมา แต่ใน Mask เฉลยของไทยมีค่าเป็น 0 โมเดลจะโดนทำโทษทันทีในฐานะ **False Positive (FP)** ผ่านฟังก์ชัน `BCE + Dice Loss` บีบให้น้ำหนักในโครงข่ายเลิกตอบสนองต่อเส้นนอกเลนตัวรถโดยอัตโนมัติ
 
 > 📖 **อ่านรายงานวิจัยฉบับสมบูรณ์เจาะลึก 4 การทดลอง:** ดูได้ที่ [`cardashcam_train_model/EXPERIMENTS.md`](cardashcam_train_model/EXPERIMENTS.md)
+
+---
+
+## 🏷️ คุณภาพชุดข้อมูลถนนไทย (Thai Dataset Labeling & Quality Check)
+
+ชุดข้อมูลถนนไทย **1,037 ภาพ** ถูกตี Label (Ground Truth) ด้วยมือทั้งหมด และมีการตรวจสอบความสอดคล้องของการตีเส้นระหว่างคนตี Label หลายคน (Inter-Annotator Agreement) เพื่อยืนยันว่าชุดข้อมูลที่สร้างขึ้นเองมีความน่าเชื่อถือและกติกา Ego-lane 2 เส้นสอดคล้องกัน
+
+* **Person 1 (ผู้ตี Label หลัก):** ตี Label เอง**ครบทุกภาพ 1,037 ภาพ** (Train/Val/Test) ตามกติกา Ego-lane 2 เส้นหน้ารถ
+* **Person 2, 3, 4 (เพื่อนช่วยตรวจ):** แต่ละคนตี Label **ภาพชุดย่อย ~30%** (สุ่มแยกคนละชุด) แล้วนำ**พิกัดจุด**ที่ได้มาเทียบกับของ Person 1 เพื่อวัดความถูกต้องของชุดข้อมูล
+
+### ตัวชี้วัดการเทียบ Label (2 แบบ)
+
+| ตัวชี้วัด | สิ่งที่เทียบ | วิธีวัด | ผลลัพธ์ |
+| :--- | :--- | :--- | :---: |
+| **ความตรงของพิกัดจุด (Point Agreement)** | Person 2, 3, 4 เทียบกับ Person 1 | สุ่มจุดบนเส้นทุก **5 พิกเซล** ตามแกน y รวม **97,201 จุด** แล้วนับสัดส่วนจุดที่ห่างจาก Person 1 **ไม่เกิน 30 พิกเซล** (เกณฑ์เดียวกับ CULane) → เฉลี่ย 3 คน | **90.65%** |
+| **Mask IoU (คนเทียบคน)** | Person 3 เทียบกับ Person 4 | แปลงเส้นเป็น Mask หนา **30 พิกเซล** แล้ววัด **Mask IoU** ระหว่างสองคน | **55.16%** |
+
+> **สรุป:** ตัวเลข **90.65%** = ความตรงของพิกัดจุด ระหว่าง Label ของเพื่อนทั้ง 3 (P2/P3/P4) กับ Label หลักของผม (P1) — สุ่มจุดทุก 5 px รวม 97,201 จุด นับจุดที่ห่างกัน ≤ 30 px (เกณฑ์ CULane) แล้วเฉลี่ยคน · ตัวเลข **55.16%** = Mask IoU ระหว่าง Person 3 กับ Person 4 (เทียบคนต่อคน) โดยแปลงเส้นเป็น mask หนา 30 px · ใจความคือชุดไทยถูกตีด้วยมือโดย Person 1 ครบ 1,037 ภาพ และเส้นที่คนตี Label ต่างคนตีตรงกันสูงพอจะใช้เป็น Ground Truth ฝึกโมเดลได้
 
 ---
 
@@ -104,7 +122,7 @@ flowchart TD
 2. **สคริปต์ทำนายผลอัตโนมัติ (`predict_mask.py`):**
    * สคริปต์ Standalone โหลดโมเดลตัวจริง DeepLabV3+ ResNet-50 ทำนายภาพเดี่ยวหรือทั้งโฟลเดอร์ ส่งออกเป็น Mask พร้อมให้ฝั่ง IP หยิบไปเข้า Sliding Window ได้ทันที
 3. **มาตรฐานการวัดผลเดียวกัน (`eval_masks.py`):**
-   * เครื่องมือวัดผลร่วม ไม่ต้องพึ่งพาโมเดลหรือ GPU วัดผลพิกเซล (IoU, Precision, Recall, F1) และเรขาคณิต (Slope Error) เพื่อเปรียบเทียบผลระหว่าง DL และ IP บนไม้บรรทัดเดียวกันอย่างเที่ยงตรง
+   * เครื่องมือวัดผลร่วม ไม่ต้องพึ่งพาโมเดลหรือ GPU วัดผลเชิงพิกเซลด้วย **IoU (IoU, Precision, Recall, F1)** เพื่อเปรียบเทียบผลระหว่าง DL และ IP บนไม้บรรทัดเดียวกันอย่างเที่ยงตรง
 
 ---
 
